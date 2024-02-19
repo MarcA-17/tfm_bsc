@@ -1,5 +1,6 @@
 """This script contains all the functions created for the variant_detection script"""
 
+import re
 
 def intersect(alignment, variant):
     """This function is meant to assess whether an alignment from a samfile -opened with pysam- intersects with a
@@ -66,9 +67,6 @@ def compare(chr_al, init_al, end_al, chr_wd, init_wd, end_wd):
     return 0
 
 
-import re
-
-
 def anno_cigar(out_file, cigar, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window):
     """This function takes a cigar string and annotates all the changes that it contains in an output file, while
     it returns the amount of changes annotated. It returns the number of total variations within the window.
@@ -106,7 +104,15 @@ def anno_cigar(out_file, cigar, regexp, ref_pos, aln_chr, symbol_add, dict_cigar
     return total_vars
 
 
-def anno_cigar2(out_file, cigar, md_tag, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window):
+def encode_var(pos_init, pos_end, var_type, length):
+    "This function returns a unique string for each indel to be its key in a dict"
+
+    unique_string = "{};{};{};{}".format(pos_init, pos_end, var_type, length)
+    return unique_string
+
+
+def anno_cigar2(dict_indel_count, dict_snv_count, out_file, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add,
+                dict_cigar, ref_consuming, window):
     """This function takes a cigar string and annotates all the changes that it contains in an output file, while
     it returns the amount of changes annotated. It returns the number of potential SNVs and INDELs within the window.
     regexp: splits the cigar string
@@ -116,28 +122,33 @@ def anno_cigar2(out_file, cigar, md_tag, regexp, ref_pos, aln_chr, symbol_add, d
 
     with open(out_file, "a") as fileT:
         cigar_list = re.split(regexp, cigar)  # we split the string into a list
-        # we parse the cigar list
+        # we parse the cigar list to get the INDELs
         cigar_pos = 0  # to parse cigar_list
         cigar_length = 0  # to track the position in the genome
-        total_SNV = 0  # counter to store the SNVs found in this aln
-        total_INDEL = 0  # counter to store the SNVs found in this aln
         for i in cigar_list:
             if i.isdigit():
                 if cigar_list[cigar_pos + 1] in symbol_add:
                     true_pos = ref_pos + cigar_length
-                    # we report the variation
-                    fileT.write("{}\t".format(aln_chr))  # we write the chr
-                    fileT.write("{}\t".format(true_pos))  # we write the pos
-                    fileT.write("-\t")  # we write the ref
-                    fileT.write("-\t")  # we write the alt
-                    fileT.write("{}\t".format(dict_cigar[cigar_list[cigar_pos + 1]]))  # we write the type
-                    fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
-                    fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
+                    # we create the unique key for the dict_indel_count
+                    pos_init = true_pos
+                    pos_end = int(true_pos) + int(i)
+                    var_type = cigar_pos + 1
+                    length = i
+                    unique_string_indel = encode_var(pos_init, pos_end, var_type, length)
+                    # we store the variation in the dict
+                    if unique_string_indel not in dict_indel_count:
+                        dict_indel_count[unique_string_indel] = 1
+                        # we report the variation
+                        fileT.write("{}\t".format(aln_chr))  # we write the chr
+                        fileT.write("{}\t".format(true_pos))  # we write the pos
+                        fileT.write("-\t")  # we write the ref
+                        fileT.write("-\t")  # we write the alt
+                        fileT.write("{}\t".format(dict_cigar[cigar_list[cigar_pos + 1]]))  # we write the type
+                        fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
+                        fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
 
-                    #if cigar_list[cigar_pos + 1] == "X":
-                        #total_SNV += 1
-                    if cigar_list[cigar_pos + 1] == "I" or "D":
-                        total_INDEL += 1
+                    else:  # if the variation is already annotated in the dict
+                        dict_indel_count[unique_string_indel] += 1
 
                 if cigar_list[cigar_pos + 1] in ref_consuming:  # if cigar operation consumes reference
                     cigar_length += int(i)
@@ -145,58 +156,36 @@ def anno_cigar2(out_file, cigar, md_tag, regexp, ref_pos, aln_chr, symbol_add, d
             else:
                 cigar_pos += 1
 
-        # We parse the md tag to get the SNVs
-        md_regexp = r'(?<![A-Z^])[A-Z]'  # this pattern matches any letter not preceded either by ^ or [A-Z]
-        md_SNV_list = re.findall(md_regexp, md_tag)
-        total_SNV = len(md_SNV_list)
-
-    return total_SNV, total_INDEL
-
-def var_anno(out_file, cigar_tuple, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window):
-    """This function takes a cigar string and a md_tag and annotates all the changes that it contains in an output file,
-    while it returns the amount of changes annotated. It returns the number of potential SNVs and INDELs within the
-    window.
-    regexp: splits the cigar string
-    symbol_add: cigar operations to report
-    dict_cigar: dictionary to translate cigar letters
-    ref_consuming: stores reference consuming cigar operations"""
-
-    with open(out_file, "a") as fileT:
-        # we parse the cigar tuple
-        cigar_pos = 0  # to parse cigar_list
-        cigar_length = 0  # to track the position in the genome
-        total_SNV = 0  # counter to store the SNVs found in this aln
-        total_INDEL = 0  # counter to store the SNVs found in this aln
-        for i in cigar_list:
-            if i.isdigit():
-                if cigar_list[cigar_pos + 1] in symbol_add:
-                    true_pos = ref_pos + cigar_length
+        # We parse the md tag to get the mismatches
+        md_pos = 0  # to parse md_list
+        md_length = 0  # to track the position in the genome
+        for i in md_list:
+            if i == "0":  # md separator
+                pass  # ignore
+            elif i[0] == "^":  # deletions
+                md_length += len(i) - 1
+            elif re.match(r'^\d', i):  # matches
+                md_length += int(i)
+            else:  # mismatches
+                md_length += 1
+                pos_snv = ref_pos + md_length
+                substitution = i
+                unique_string_snv = "{};{}".format(pos_snv, substitution)
+                if unique_string_snv not in dict_snv_count:
+                    dict_snv_count[unique_string_snv] = 1
                     # we report the variation
                     fileT.write("{}\t".format(aln_chr))  # we write the chr
-                    fileT.write("{}\t".format(true_pos))  # we write the pos
+                    fileT.write("{}\t".format(pos_snv))  # we write the pos
                     fileT.write("-\t")  # we write the ref
                     fileT.write("-\t")  # we write the alt
-                    fileT.write("{}\t".format(dict_cigar[cigar_list[cigar_pos + 1]]))  # we write the type
+                    fileT.write("MM\t")  # we write the type
                     fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
                     fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
 
-                    #if cigar_list[cigar_pos + 1] == "X":
-                        #total_SNV += 1
-                    if cigar_list[cigar_pos + 1] == "I" or "D":
-                        total_INDEL += 1
+                else:  # if the variation is already annotated in the dict
+                    dict_snv_count[unique_string_snv] += 1
 
-                if cigar_list[cigar_pos + 1] in ref_consuming:  # if cigar operation consumes reference
-                    cigar_length += int(i)
-                cigar_pos += 1
-            else:
-                cigar_pos += 1
-
-        # We parse the md tag to get the SNVs
-        md_regexp = r'(?<![A-Z^])[A-Z]'  # this pattern matches any letter not preceded either by ^ or [A-Z]
-        md_SNV_list = re.findall(md_regexp, md_tag)
-        total_SNV = len(md_SNV_list)
-
-    return total_SNV, total_INDEL
+            md_pos += 1
 
 
 def dict_generator(fasta):
@@ -220,5 +209,4 @@ def chr_converter(chr_dict, chr_name):
     that has been created wit the dict_generator function."""
 
     chr_integer = chr_dict[chr_name]
-
     return chr_integer
