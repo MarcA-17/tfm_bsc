@@ -8,7 +8,7 @@ import os
 import re
 import pysam
 from variant_extractor import VariantExtractor
-from functions import compare, anno_cigar, anno_cigar2, dict_generator, chr_converter  # local scripts
+from functions import compare, anno_cigar2, dict_generator, chr_converter, encode_var  # local scripts
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -59,7 +59,7 @@ extractor = VariantExtractor(in_vcf)
 # Define some things related to cigar management
 ref_consuming = ['M', 'D', 'N', '=', 'X']  # stores reference consuming cigar operations
 regexp = r"(?<=[a-zA-Z=])(?=[0-9])|(?<=[0-9])(?=[a-zA-Z=])"  # regexp to split cigar string
-symbol_add = ["X", "I", "D"]  # cigar operations to report
+symbol_add = ["I", "D"]  # cigar operations to report
 dict_cigar = {"X": "MM", "I": "INS", "D": "DEL"}
 dict_tuples = {0: "M", 1: "I", 2: "D", 3: "N", 4: "S", 5: "H", 6: "P", 7: "=", 8: "X", 9: "B"}
 
@@ -78,18 +78,21 @@ for variant in extractor:
     window_list.append((chr_name, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))
 
 window_index = 0  # index to parse the window list
+INDEL_unique_strings_count = []  # we init a list to store the INDELs for each window
+SNV_unique_strings_count = []  # we init a list to store the SNVs for each window
 # window_vars_list = []  # list lo store the variations in each window
 # window_vars = 0  # counter for the number of variations in each window
-window_SNV_list = []  # list lo store the SNVs in each window
-window_SNV = 0  # counter for the number of SNVs in each window
-window_INDEL_list = []  # list lo store the INDELs in each window
-window_INDEL = 0  # counter for the number of INDELs in each window
+#window_SNV_list = []  # list lo store the SNVs in each window
+#window_SNV = 0  # counter for the number of SNVs in each window
+#window_INDEL_list = []  # list lo store the INDELs in each window
+#window_INDEL = 0  # counter for the number of INDELs in each window
 
 # Parse vcf and sam files in parallel
 
 aln_iter = samfile_T.__iter__()
 aln = next(aln_iter, None)  # if there is no next alignment, then aln == None
-
+dict_indel_count = {}  # initialize dict to store INDELs count
+dict_snv_count = {}  # init dict to store SNVs count
 while aln is not None and window_index < len(window_list):
 
     if aln.cigarstring is None:
@@ -109,21 +112,24 @@ while aln is not None and window_index < len(window_list):
     if -1 <= cmp <= 1:  # if intersection
 
         cigar = str(aln.cigarstring)  # we get the cigar string
-        cigar_tuple = aln.cigartuples  # we get the cigar_tuple
-        # ToDo: try with cigartuples?
+        #cigar_tuple = aln.cigartuples  # we get the cigar_tuple
         # print(cigar)
-        md_tag = aln.get_tag("MD", with_value_type=False)  # we get the md tag
-        # print(md_tag, cigar)
+        # we get the md tag and process it
+        md_tag = aln.get_tag("MD", with_value_type=False)
+        pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
+        md_list = re.findall(pattern_md, md_tag)
+        # print(md_list)
 
         ref_pos = aln.reference_start  # get the reference position where the cigar begins
         aln_chr = aln.reference_name  # we get the chr
         window = window_list[window_index]
-        total_vars = anno_cigar2(outT, cigar, md_tag, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming,
-                                 window)
+        #total_vars = anno_cigar2(dict_indel_count, outT, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window)
+        anno_cigar2(dict_indel_count, dict_snv_count, outT, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar,
+                    ref_consuming, window)
         # we annotate the variation and get the amount of variants in the aln
         # window_vars += total_vars
-        window_SNV += total_vars[0]
-        window_INDEL += total_vars[1]
+        #window_SNV += total_vars[0]
+        #window_INDEL += total_vars[1]
         # print("total_vars:", total_vars)
         # print("window_SNVs:", window_SNV)
         # print("window_INDELs:", window_INDEL)
@@ -136,13 +142,18 @@ while aln is not None and window_index < len(window_list):
 
     if cmp > 1:  # cmp == 2 or 3
         # if window_index < len(window_list)-1:  # if not the last window
+        INDEL_unique_strings_count.append(len(dict_indel_count))  # we store the number of variations in the window
+        dict_indel_count = {}  # re-init dict
+        SNV_unique_strings_count.append(len(dict_snv_count))  # we store the number of variations in the window
+        dict_snv_count = {}  # re-init dict
         window_index += 1  # change to next window maintaining the alignment
+        #print(SNV_unique_strings_count)
         # window_vars_list.append(window_vars)  # store the variation amount in the list
         # window_vars = 0  # restore the counter
-        window_SNV_list.append(window_SNV)  # store the variation amount in the list
-        window_SNV = 0  # restore the counter
-        window_INDEL_list.append(window_INDEL)  # store the variation amount in the list
-        window_INDEL = 0  # restore the counter
+        #window_SNV_list.append(window_SNV)  # store the variation amount in the list
+        #window_SNV = 0  # restore the counter
+        #window_INDEL_list.append(window_INDEL)  # store the variation amount in the list
+        #window_INDEL = 0  # restore the counter
         # else:  # if there are no more windows and no intersection
         #   break
 
@@ -161,7 +172,33 @@ while aln is not None and window_index < len(window_list):
 # Display the histogram
 # plt.show()
 
-# Create a figure with two subplots
+# Create a single figure with two subplots
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+data1 = INDEL_unique_strings_count
+data2 = SNV_unique_strings_count
+
+# Plot for INDELs
+axes[0].hist(data1, bins=range(int(min(data1)), int(max(data1)) + 2), color='blue', alpha=0.7)
+axes[0].set_xlim(left=0, right=100)
+axes[0].set_xlabel('Number of INDELs/window')
+axes[0].set_ylabel('Frequency')
+axes[0].set_title('Distribution of the INDELs among the 2kb windows')
+
+# Plot for SNVs
+axes[1].hist(data2, bins=range(int(min(data2)), int(max(data2)) + 2), color='blue', alpha=0.7)
+axes[1].set_xlim(left=0, right=1500)
+axes[1].set_xlabel('Number of SNVs/window')
+axes[1].set_ylabel('Frequency')
+axes[1].set_title('Distribution of the SNVs among the 2kb windows')
+
+# Adjust layout to prevent overlap
+plt.tight_layout()
+
+# Save the combined plot
+plt.savefig('{}hist/hist_combined.pdf'.format(out_dir))
+
+
+"""# Create a figure with two subplots
 fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=False, figsize=(8, 6))
 
 # Create the histogram for the first subplot
@@ -170,12 +207,19 @@ ax1.hist(window_SNV_list, bins=range(min(window_SNV_list), max(window_SNV_list) 
 ax1.set_ylabel('Frequency')
 ax1.set_title('Distribution of the SNVs among the 2kb windows')
 
+# Set x-axis limit for the first subplot
+ax1.set_xlim(right=2500)
+# ax1.set_ylim()
+
 # Create the histograms for the second subplot
 ax2.hist(window_INDEL_list, bins=range(min(window_INDEL_list), max(window_INDEL_list) + 1),
          alpha=0.5, color='orange', label='INDELs')
 ax2.set_xlabel('Number of variations/window')
 ax2.set_ylabel('Frequency')
 ax2.set_title('Distribution of the INDELs among the 2kb windows')
+
+# Set x-axis limit for the second subplot
+ax2.set_xlim(right=250)
 
 # Add a common title for the entire figure
 # fig.suptitle('Two Histograms')
@@ -188,12 +232,12 @@ ax2.legend()
 plt.tight_layout()
 
 # Save the histogram as a PDF file
-plt.savefig('{}hist/hist_var_types.pdf'.format(out_dir))
+plt.savefig('{}hist/hist_SNVs.pdf'.format(out_dir))
 
 # Show the plot
-# plt.show()
+# plt.show()"""
 
-# Statistics
+"""# Statistics
 
 SNV_counts = len(window_SNV_list)  # should be same as len(window_list) ?
 SNV_min = np.min(window_SNV_list)
@@ -230,7 +274,7 @@ with open(stats_file, "w") as file:
     file.write('Mean: {}\n'.format(INDEL_mean))
     file.write('Median: {}\n'.format(INDEL_median))
     file.write('Standard deviation: {}\n'.format(INDEL_std))
-    file.write('Variance: {}\n'.format(INDEL_var))
+    file.write('Variance: {}\n'.format(INDEL_var))"""
 
 # Record the end time
 end_time = time.time()
