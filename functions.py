@@ -2,6 +2,10 @@
 
 import re
 
+
+SINGLE_READ_VARIANT = 0
+TUMORAL_ONLY_VARIANT = 1
+TUMORAL_NORMAL_VARIANT = 2
 def intersect(alignment, variant):
     """This function is meant to assess whether an alignment from a samfile -opened with pysam- intersects with a
       variant record from a vcf file -opened with VariantExtractor-"""
@@ -80,7 +84,7 @@ def anno_cigar(out_file, cigar, regexp, ref_pos, aln_chr, symbol_add, dict_cigar
         # we parse the cigar list
         cigar_pos = 0  # to parse cigar_list
         cigar_length = 0  # to track the position in the genome
-        total_vars = 0  # counter to store the variations found in this aln
+        total_vars = 0  # counter to store the variations found in this tumor_aln
         for i in cigar_list:
             if i.isdigit():
                 if cigar_list[cigar_pos + 1] in symbol_add:
@@ -111,81 +115,94 @@ def encode_var(pos_init, pos_end, var_type, length):
     return unique_string
 
 
-def anno_cigar2(dict_indel_count, dict_snv_count, out_file, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add,
-                dict_cigar, ref_consuming, window):
+def anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add,
+                dict_cigar, datasetIdx, ref_consuming, window):
     """This function takes a cigar string and annotates all the changes that it contains in an output file, while
     it returns the amount of changes annotated. It returns the number of potential SNVs and INDELs within the window.
     regexp: splits the cigar string
     symbol_add: cigar operations to report
     dict_cigar: dictionary to translate cigar letters
+    datasetIdx: 0 if tumoral, 1 if normal
     ref_consuming: stores reference consuming cigar operations"""
 
-    with open(out_file, "a") as fileT:
-        cigar_list = re.split(regexp, cigar)  # we split the string into a list
+    #with open(out_file, "a") as fileT:
+    cigar_list = re.split(regexp, cigar)  # we split the string into a list
         # we parse the cigar list to get the INDELs
-        cigar_pos = 0  # to parse cigar_list
-        cigar_length = 0  # to track the position in the genome
-        for i in cigar_list:
-            if i.isdigit():
-                if cigar_list[cigar_pos + 1] in symbol_add:
-                    true_pos = ref_pos + cigar_length
+    cigar_pos = 0  # to parse cigar_list
+    cigar_length = 0  # to track the position in the genome
+    for i in cigar_list:
+        if i.isdigit():
+            if cigar_list[cigar_pos + 1] in symbol_add:
+                true_pos = ref_pos + cigar_length
                     # we create the unique key for the dict_indel_count
-                    pos_init = true_pos
-                    pos_end = int(true_pos) + int(i)
-                    var_type = cigar_pos + 1
-                    length = i
-                    unique_string_indel = encode_var(pos_init, pos_end, var_type, length)
-                    # we store the variation in the dict
-                    if unique_string_indel not in dict_indel_count:
-                        dict_indel_count[unique_string_indel] = 1
+                # TODO: Fix CIGAR Length -> Marc
+                pos_init = true_pos
+                pos_end = int(true_pos) + int(i)
+                var_type = cigar_pos + 1
+                length = i
+                unique_string_indel = encode_var(pos_init, pos_end, var_type, length)
+                # we store the variation in the dict
+                if unique_string_indel not in dict_indel_count:
+                    if datasetIdx == 0:
+                        dict_indel_count[unique_string_indel] = SINGLE_READ_VARIANT
                         # we report the variation
-                        fileT.write("{}\t".format(aln_chr))  # we write the chr
-                        fileT.write("{}\t".format(true_pos))  # we write the pos
-                        fileT.write("-\t")  # we write the ref
-                        fileT.write("-\t")  # we write the alt
-                        fileT.write("{}\t".format(dict_cigar[cigar_list[cigar_pos + 1]]))  # we write the type
-                        fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
-                        fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
-
-                    else:  # if the variation is already annotated in the dict
-                        dict_indel_count[unique_string_indel] += 1
-
-                if cigar_list[cigar_pos + 1] in ref_consuming:  # if cigar operation consumes reference
-                    cigar_length += int(i)
-                cigar_pos += 1
-            else:
-                cigar_pos += 1
-
-        # We parse the md tag to get the mismatches
-        md_pos = 0  # to parse md_list
-        md_length = 0  # to track the position in the genome
-        for i in md_list:
-            if i == "0":  # md separator
-                pass  # ignore
-            elif i[0] == "^":  # deletions
-                md_length += len(i) - 1
-            elif re.match(r'^\d', i):  # matches
-                md_length += int(i)
-            else:  # mismatches
-                md_length += 1
-                pos_snv = ref_pos + md_length
-                substitution = i
-                unique_string_snv = "{};{}".format(pos_snv, substitution)
-                if unique_string_snv not in dict_snv_count:
-                    dict_snv_count[unique_string_snv] = 1
-                    # we report the variation
-                    fileT.write("{}\t".format(aln_chr))  # we write the chr
-                    fileT.write("{}\t".format(pos_snv))  # we write the pos
-                    fileT.write("-\t")  # we write the ref
-                    fileT.write("-\t")  # we write the alt
-                    fileT.write("MM\t")  # we write the type
-                    fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
-                    fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
+                        # fileT.write("{}\t".format(aln_chr))  # we write the chr
+                        # fileT.write("{}\t".format(true_pos))  # we write the pos
+                        # fileT.write("-\t")  # we write the ref
+                        # fileT.write("-\t")  # we write the alt
+                        # fileT.write("{}\t".format(dict_cigar[cigar_list[cigar_pos + 1]]))  # we write the type
+                        # fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
+                        # fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
 
                 else:  # if the variation is already annotated in the dict
-                    dict_snv_count[unique_string_snv] += 1
+                    if dict_indel_count[unique_string_indel] != TUMORAL_NORMAL_VARIANT:
+                        if datasetIdx == 1:
+                            dict_indel_count[unique_string_indel] = TUMORAL_NORMAL_VARIANT
+                        else:
+                            dict_indel_count[unique_string_indel] = TUMORAL_ONLY_VARIANT
+                    # dict_indel_count[unique_string_indel] += 1
 
-            md_pos += 1
+            if cigar_list[cigar_pos + 1] in ref_consuming:  # if cigar operation consumes reference
+                cigar_length += int(i)
+            cigar_pos += 1
+        else:
+            cigar_pos += 1
+
+    # We parse the md tag to get the mismatches
+    md_pos = 0  # to parse md_list
+    md_length = 0  # to track the position in the genome
+    for i in md_list:
+        if i == "0":  # md separator
+            pass  # ignore
+        elif i[0] == "^":  # deletions
+            md_length += len(i) - 1
+        elif re.match(r'^\d', i):  # matches
+            md_length += int(i)
+        else:  # mismatches
+            md_length += 1
+            pos_snv = ref_pos + md_length
+            substitution = i
+            unique_string_snv = "{};{}".format(pos_snv, substitution)
+            if unique_string_snv not in dict_snv_count:
+                if datasetIdx == 0:
+                    dict_snv_count[unique_string_snv] = SINGLE_READ_VARIANT
+                    # we report the variation
+                    #fileT.write("{}\t".format(aln_chr))  # we write the chr
+                    #fileT.write("{}\t".format(pos_snv))  # we write the pos
+                    #fileT.write("-\t")  # we write the ref
+                    #fileT.write("-\t")  # we write the alt
+                    #fileT.write("MM\t")  # we write the type
+                    #fileT.write("{}\t".format(window[3]))  # we write the VCF_TYPE
+                    #fileT.write("{}\n".format(int(window[1]) + 1000))  # we write the VCF_POS
+
+            else:  # if the variation is already annotated in the dict
+                if dict_snv_count[unique_string_snv] != TUMORAL_NORMAL_VARIANT:
+                    if datasetIdx == 1:
+                        dict_snv_count[unique_string_snv] = TUMORAL_NORMAL_VARIANT
+                    else:
+                        dict_snv_count[unique_string_snv] = TUMORAL_ONLY_VARIANT
+                # dict_snv_count[unique_string_snv] += 1
+        md_pos += 1
 
 
 def dict_generator(fasta):

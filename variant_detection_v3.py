@@ -88,7 +88,7 @@ window_INDEL = 0  # counter for the number of INDELs in each window
 # Parse vcf and sam files in parallel
 
 aln_iter = samfile_T.__iter__()
-aln = next(aln_iter, None)  # if there is no next alignment, then aln == None
+aln = next(aln_iter, None)  # if there is no next alignment, then tumor_aln == None
 
 while aln is not None and window_index < len(window_list):
 
@@ -96,8 +96,8 @@ while aln is not None and window_index < len(window_list):
         aln = next(aln_iter, None)
         continue  # go back to while loop beginning
 
-    # print('cigar:', aln.cigartuples)
-    # print(aln.reference_name, aln.reference_start, aln.reference_end, window_list[window_index][0], window_list[window_index][1], window_list[window_index][2])
+    # print('cigar:', tumor_aln.cigartuples)
+    # print(tumor_aln.reference_name, tumor_aln.reference_start, tumor_aln.reference_end, window_list[window_index][0], window_list[window_index][1], window_list[window_index][2])
     chr_aln = chr_converter(chr_dict, aln.reference_name)  # we assign the integer value
     cmp = compare(chr_aln, aln.reference_start, aln.reference_end,
                   window_list[window_index][0], window_list[window_index][1], window_list[window_index][2])
@@ -123,7 +123,7 @@ while aln is not None and window_index < len(window_list):
         window = window_list[window_index]
         total_vars = var_anno(outT, tr_cigar_tuple, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar,
                               ref_consuming, window)
-        # we annotate the variation and get the amount of variants in the aln
+        # we annotate the variation and get the amount of variants in the tumor_aln
         # window_vars += total_vars
         window_SNV += total_vars[0]
         window_INDEL += total_vars[1]
