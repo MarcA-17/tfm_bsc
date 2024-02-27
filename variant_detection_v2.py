@@ -45,6 +45,7 @@ try:
 except FileExistsError:
     print('Output files have been generated at an existing directory:')
     print(out_dir)
+    print('{}/hist_combined.pdf'.format(out_dir))
 
 #outN = f'{out_dir}variation_N.txt'
 #outT = f'{out_dir}variation_T.txt'
@@ -296,7 +297,7 @@ for window in window_list:
 # plt.show()
 
 # Create a single figure with two subplots
-fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+fig, axes = plt.subplots(3, 2, figsize=(12, 4))
 data1 = INDEL_counts[TUMORAL_NORMAL_VARIANT]
 data2 = SNV_counts[TUMORAL_NORMAL_VARIANT]
 data3 = INDEL_counts[SINGLE_READ_VARIANT]
@@ -304,26 +305,53 @@ data4 = SNV_counts[SINGLE_READ_VARIANT]
 data5 = INDEL_counts[TUMORAL_ONLY_VARIANT]
 data6 = SNV_counts[TUMORAL_ONLY_VARIANT]
 
-# TODO: Make the other histograms -> Marc
 # Plot for potential germinal INDELs
 axes[0].hist(data1, bins=range(int(min(data1)), int(max(data1)) + 2), color='blue', alpha=0.7)
-axes[0].set_xlim(left=0, right=100)
+axes[0].set_xlim(left=0, right=25)
 axes[0].set_xlabel('Number of INDELs/window')
 axes[0].set_ylabel('Count')
-axes[0].set_title('Potential germline indel counts for 2kb windows')
+axes[0].set_title('Potential germline INDEL counts for 2kb windows')
 
 # Plot for potential germinal SNVs
 axes[1].hist(data2, bins=range(int(min(data2)), int(max(data2)) + 2), color='blue', alpha=0.7)
-axes[1].set_xlim(left=0, right=1500)
+axes[1].set_xlim(left=0, right=1000)
 axes[1].set_xlabel('Number of SNVs/window')
 axes[1].set_ylabel('Count')
 axes[1].set_title('Potential germline SNV counts for 2kb windows')
+
+# Plot for single-read INDELs
+axes[2].hist(data3, bins=range(int(min(data3)), int(max(data3)) + 2), color='blue', alpha=0.7)
+#axes[2].set_xlim(left=0, right=100)
+axes[2].set_xlabel('Number of INDELs/window')
+axes[2].set_ylabel('Count')
+axes[2].set_title('Single-read INDEL counts for 2kb windows')
+
+# Plot for single-read SNVs
+axes[3].hist(data4, bins=range(int(min(data4)), int(max(data4)) + 2), color='blue', alpha=0.7)
+#axes[3].set_xlim(left=0, right=1500)
+axes[3].set_xlabel('Number of SNVs/window')
+axes[3].set_ylabel('Count')
+axes[3].set_title('Single-read SNV counts for 2kb windows')
+
+# Plot for tumoral-only INDELs
+axes[4].hist(data5, bins=range(int(min(data5)), int(max(data5)) + 2), color='blue', alpha=0.7)
+#axes[4].set_xlim(left=0, right=100)
+axes[4].set_xlabel('Number of INDELs/window')
+axes[4].set_ylabel('Count')
+axes[4].set_title('Tumoral-only INDEL counts for 2kb windows')
+
+# Plot for tumoral-only SNVs
+axes[5].hist(data6, bins=range(int(min(data6)), int(max(data6)) + 2), color='blue', alpha=0.7)
+axes[5].set_xlim(left=0, right=1500)
+#axes[5].set_xlabel('Number of SNVs/window')
+axes[5].set_ylabel('Count')
+axes[5].set_title('Tumoral-only SNV counts for 2kb windows')
 
 # Adjust layout to prevent overlap
 plt.tight_layout()
 
 # Save the combined plot
-plt.savefig('{}hist/hist_combined.pdf'.format(out_dir))
+plt.savefig('{}/hist_combined.pdf'.format(out_dir))
 
 """# Create a figure with two subplots
 fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=False, figsize=(8, 6))

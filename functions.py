@@ -132,10 +132,13 @@ def anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, regexp, ref_po
     cigar_length = 0  # to track the position in the genome
     for i in cigar_list:
         if i.isdigit():
-            if cigar_list[cigar_pos + 1] in symbol_add:
+            cigar_op = cigar_list[cigar_pos + 1]
+            if cigar_op not in symbol_add:
+                if cigar_op in ref_consuming:  # if cigar operation consumes reference
+                    cigar_length += int(i)
+            if cigar_op in symbol_add:
                 true_pos = ref_pos + cigar_length
-                    # we create the unique key for the dict_indel_count
-                # TODO: Fix CIGAR Length -> Marc
+                # we create the unique key for the dict_indel_count
                 pos_init = true_pos
                 pos_end = int(true_pos) + int(i)
                 var_type = cigar_pos + 1
@@ -162,7 +165,7 @@ def anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, regexp, ref_po
                             dict_indel_count[unique_string_indel] = TUMORAL_ONLY_VARIANT
                     # dict_indel_count[unique_string_indel] += 1
 
-            if cigar_list[cigar_pos + 1] in ref_consuming:  # if cigar operation consumes reference
+            if cigar_op in ref_consuming:  # if cigar operation consumes reference
                 cigar_length += int(i)
             cigar_pos += 1
         else:
