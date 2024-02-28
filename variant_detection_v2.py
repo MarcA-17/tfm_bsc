@@ -81,6 +81,7 @@ dict_tuples = {0: "M", 1: "I", 2: "D", 3: "N", 4: "S", 5: "H", 6: "P", 7: "=", 8
 SINGLE_READ_VARIANT = 0
 TUMORAL_ONLY_VARIANT = 1
 TUMORAL_NORMAL_VARIANT = 2
+NORMAL_ONLY_VARIANT = 3
 
 # Create a dict to assign an integer value to each chr name
 
@@ -174,6 +175,7 @@ for window in window_list:
                     single_read_variant_counts = 0
                     tumoral_only_counts = 0
                     tumoral_normal_variant_counts = 0
+                    normal_only_variants_counts = 0
                     for k, v in dict_indel_count.items():
                         if v == SINGLE_READ_VARIANT:
                             single_read_variant_counts += 1
@@ -181,13 +183,17 @@ for window in window_list:
                             tumoral_only_counts += 1
                         if v == TUMORAL_NORMAL_VARIANT:
                             tumoral_normal_variant_counts += 1
+                        if v == NORMAL_ONLY_VARIANT:
+                            normal_only_variants_counts += 1
                     INDEL_counts[SINGLE_READ_VARIANT].append(single_read_variant_counts)
                     INDEL_counts[TUMORAL_ONLY_VARIANT].append(tumoral_only_counts)
                     INDEL_counts[TUMORAL_NORMAL_VARIANT].append(tumoral_normal_variant_counts)  # we store the number of variations in the window
+                    INDEL_counts[NORMAL_ONLY_VARIANT].append(normal_only_variants_counts)
                     dict_indel_count = {}  # re-init dict
                     single_read_variant_counts = 0
                     tumoral_only_counts = 0
                     tumoral_normal_variant_counts = 0
+                    normal_only_variants_counts = 0
                     for k, v in dict_snv_count.items():
                         if v == SINGLE_READ_VARIANT:
                             single_read_variant_counts += 1
@@ -195,9 +201,12 @@ for window in window_list:
                             tumoral_only_counts += 1
                         if v == TUMORAL_NORMAL_VARIANT:
                             tumoral_normal_variant_counts += 1
+                        if v == NORMAL_ONLY_VARIANT:
+                            normal_only_variants_counts += 1
                     SNV_counts[SINGLE_READ_VARIANT].append(single_read_variant_counts)
                     SNV_counts[TUMORAL_ONLY_VARIANT].append(tumoral_only_counts)
                     SNV_counts[TUMORAL_NORMAL_VARIANT].append(tumoral_normal_variant_counts)
+                    SNV_counts[NORMAL_ONLY_VARIANT].append(normal_only_variants_counts)
                     # SNV_counts.append(len(dict_snv_count))  # we store the number of variations in the window
                     dict_snv_count = {}  # re-init dict
                 hold_iter[iterIdx] = True
@@ -297,55 +306,71 @@ for window in window_list:
 # plt.show()
 
 # Create a single figure with two subplots
-fig, axes = plt.subplots(3, 2, figsize=(12, 4))
+fig, axes = plt.subplots(4, 2, figsize=(24, 8))
 data1 = INDEL_counts[TUMORAL_NORMAL_VARIANT]
 data2 = SNV_counts[TUMORAL_NORMAL_VARIANT]
 data3 = INDEL_counts[SINGLE_READ_VARIANT]
 data4 = SNV_counts[SINGLE_READ_VARIANT]
 data5 = INDEL_counts[TUMORAL_ONLY_VARIANT]
 data6 = SNV_counts[TUMORAL_ONLY_VARIANT]
+data7 = INDEL_counts[NORMAL_ONLY_VARIANT]
+data8 = SNV_counts[NORMAL_ONLY_VARIANT]
 
 # Plot for potential germinal INDELs
 axes[0][0].hist(data1, bins=range(int(min(data1)), int(max(data1)) + 2), color='blue', alpha=0.7)
-axes[0][0].set_xlim(left=0, right=25)
+#axes[0][0].set_xlim(left=0, right=25)
 axes[0][0].set_xlabel('Number of INDELs/window')
 axes[0][0].set_ylabel('Count')
 axes[0][0].set_title('Potential germline INDEL counts for 2kb windows')
 
 # Plot for potential germinal SNVs
 axes[0][1].hist(data2, bins=range(int(min(data2)), int(max(data2)) + 2), color='blue', alpha=0.7)
-axes[0][1].set_xlim(left=0, right=1000)
+#axes[0][1].set_xlim(left=0, right=1000)
 axes[0][1].set_xlabel('Number of SNVs/window')
 axes[0][1].set_ylabel('Count')
 axes[0][1].set_title('Potential germline SNV counts for 2kb windows')
 
 # Plot for single-read INDELs
 axes[1][0].hist(data3, bins=range(int(min(data3)), int(max(data3)) + 2), color='blue', alpha=0.7)
-#axes[2].set_xlim(left=0, right=100)
+#axes[1][0].set_xlim(left=0, right=100)
 axes[1][0].set_xlabel('Number of INDELs/window')
 axes[1][0].set_ylabel('Count')
 axes[1][0].set_title('Single-read INDEL counts for 2kb windows')
 
 # Plot for single-read SNVs
 axes[1][1].hist(data4, bins=range(int(min(data4)), int(max(data4)) + 2), color='blue', alpha=0.7)
-#axes[3].set_xlim(left=0, right=1500)
+#axes[1][1].set_xlim(left=0, right=1500)
 axes[1][1].set_xlabel('Number of SNVs/window')
 axes[1][1].set_ylabel('Count')
 axes[1][1].set_title('Single-read SNV counts for 2kb windows')
 
 # Plot for tumoral-only INDELs
 axes[2][0].hist(data5, bins=range(int(min(data5)), int(max(data5)) + 2), color='blue', alpha=0.7)
-#axes[4].set_xlim(left=0, right=100)
+#axes[2][0].set_xlim(left=0, right=100)
 axes[2][0].set_xlabel('Number of INDELs/window')
 axes[2][0].set_ylabel('Count')
 axes[2][0].set_title('Tumoral-only INDEL counts for 2kb windows')
 
 # Plot for tumoral-only SNVs
 axes[2][1].hist(data6, bins=range(int(min(data6)), int(max(data6)) + 2), color='blue', alpha=0.7)
-axes[2][1].set_xlim(left=0, right=1500)
-#axes[5].set_xlabel('Number of SNVs/window')
+#axes[2][1].set_xlim(left=0, right=1500)
+axes[2][1].set_xlabel('Number of SNVs/window')
 axes[2][1].set_ylabel('Count')
 axes[2][1].set_title('Tumoral-only SNV counts for 2kb windows')
+
+# Plot for normal-only INDELs
+axes[3][0].hist(data7, bins=range(int(min(data7)), int(max(data7)) + 2), color='blue', alpha=0.7)
+#axes[3][0].set_xlim(left=0, right=100)
+axes[3][0].set_xlabel('Number of INDELs/window')
+axes[3][0].set_ylabel('Count')
+axes[3][0].set_title('Normal-only INDEL counts for 2kb windows')
+
+# Plot for normal-only SNVs
+axes[3][1].hist(data8, bins=range(int(min(data8)), int(max(data8)) + 2), color='blue', alpha=0.7)
+#axes[3][1].set_xlim(left=0, right=1500)
+axes[3][1].set_xlabel('Number of SNVs/window')
+axes[3][1].set_ylabel('Count')
+axes[3][1].set_title('Normal-only SNV counts for 2kb windows')
 
 # Adjust layout to prevent overlap
 plt.tight_layout()
