@@ -98,8 +98,8 @@ for variant in extractor:
     window_list.append((chr_name, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))
 
 # window_index = 0  # index to parse the window list
-INDEL_counts = ([], [], [])  # we init a list to store the INDELs for each window
-SNV_counts = ([], [], [])  # we init a list to store the SNVs for each window
+INDEL_counts = ([], [], [], [])  # we init a list to store the INDELs for each window
+SNV_counts = ([], [], [], [])  # we init a list to store the SNVs for each window
 # window_vars_list = []  # list lo store the variations in each window
 # window_vars = 0  # counter for the number of variations in each window
 # window_SNV_list = []  # list lo store the SNVs in each window
