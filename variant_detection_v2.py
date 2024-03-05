@@ -69,24 +69,20 @@ except FileExistsError:
 samfile_N = pysam.AlignmentFile(in_N_bam, 'rb')  # read a bam file
 samfile_T = pysam.AlignmentFile(in_T_bam, 'rb')
 extractor = VariantExtractor(in_vcf)
+ref_genome = pysam.Fastafile(in_ref)
 
-# Define some things related to cigar management
-ref_consuming = ['M', 'D', 'N', '=', 'X']  # stores reference consuming cigar operations
-regexp = r"(?<=[a-zA-Z=])(?=[0-9])|(?<=[0-9])(?=[a-zA-Z=])"  # regexp to split cigar string
-symbol_add = ["I", "D"]  # cigar operations to report
-dict_cigar = {"X": "MM", "I": "INS", "D": "DEL"}
-dict_tuples = {0: "M", 1: "I", 2: "D", 3: "N", 4: "S", 5: "H", 6: "P", 7: "=", 8: "X", 9: "B"}
 
 # Codes representing the status of variations according to the read and tumor normal sample context
-SINGLE_READ_VARIANT = 0
-TUMORAL_ONLY_VARIANT = 1
-TUMORAL_NORMAL_VARIANT = 2
+TUMORAL_SINGLE_READ_VARIANT = 0
+NORMAL_SINGLE_READ_VARIANT = 1
+TUMORAL_ONLY_VARIANT = 2
 NORMAL_ONLY_VARIANT = 3
+TUMORAL_NORMAL_VARIANT = 4
 
 # Create a dict to assign an integer value to each chr name
 
 print("Begin dict.")
-chr_dict = dict_generator(in_ref)
+chr_dict = dict_generator(ref_genome)
 print("End dict.")
 
 # Create a 2000 kb window for each variant
@@ -98,8 +94,8 @@ for variant in extractor:
     window_list.append((chr_name, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))
 
 # window_index = 0  # index to parse the window list
-INDEL_counts = ([], [], [], [])  # we init a list to store the INDELs for each window
-SNV_counts = ([], [], [], [])  # we init a list to store the SNVs for each window
+INDEL_counts = ([], [], [], [], [])  # we init a list to store the INDELs for each window
+SNV_counts = ([], [], [], [], [])  # we init a list to store the SNVs for each window
 # window_vars_list = []  # list lo store the variations in each window
 # window_vars = 0  # counter for the number of variations in each window
 # window_SNV_list = []  # list lo store the SNVs in each window
@@ -147,7 +143,6 @@ for window in window_list:
                 pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
                 md_list = re.findall(pattern_md, md_tag)
                 # print(md_list)
-
                 ref_pos = current_aln.reference_start  # get the reference position where the cigar begins
                 aln_chr = current_aln.reference_name  # we get the chr
                 # window = window_list[window_index]
@@ -155,8 +150,7 @@ for window in window_list:
                 # anno_cigar2(dict_indel_count, dict_snv_count, outT, cigar, md_list, regexp, ref_pos, aln_chr,
                   #          symbol_add, dict_cigar,
                    #         ref_consuming, window)
-                anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, regexp, ref_pos, aln_chr,
-                            symbol_add, dict_cigar, iterIdx, ref_consuming, window)
+                anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, ref_pos, aln_chr, iterIdx, ref_genome, current_aln)
                 current_aln = next(current_iter, None)  # change to next alignment
                 # we annotate the variation and get the amount of variants in the tumor_aln
                 # window_vars += total_vars
@@ -177,7 +171,7 @@ for window in window_list:
                     tumoral_normal_variant_counts = 0
                     normal_only_variants_counts = 0
                     for k, v in dict_indel_count.items():
-                        if v == SINGLE_READ_VARIANT:
+                        if v == NORMAL_SINGLE_READ_VARIANT or v == TUMORAL_SINGLE_READ_VARIANT:
                             single_read_variant_counts += 1
                         if v == TUMORAL_ONLY_VARIANT:
                             tumoral_only_counts += 1
@@ -185,7 +179,7 @@ for window in window_list:
                             tumoral_normal_variant_counts += 1
                         if v == NORMAL_ONLY_VARIANT:
                             normal_only_variants_counts += 1
-                    INDEL_counts[SINGLE_READ_VARIANT].append(single_read_variant_counts)
+                    INDEL_counts[TUMORAL_SINGLE_READ_VARIANT].append(single_read_variant_counts)
                     INDEL_counts[TUMORAL_ONLY_VARIANT].append(tumoral_only_counts)
                     INDEL_counts[TUMORAL_NORMAL_VARIANT].append(tumoral_normal_variant_counts)  # we store the number of variations in the window
                     INDEL_counts[NORMAL_ONLY_VARIANT].append(normal_only_variants_counts)
@@ -195,7 +189,7 @@ for window in window_list:
                     tumoral_normal_variant_counts = 0
                     normal_only_variants_counts = 0
                     for k, v in dict_snv_count.items():
-                        if v == SINGLE_READ_VARIANT:
+                        if v == NORMAL_SINGLE_READ_VARIANT or v == TUMORAL_SINGLE_READ_VARIANT:
                             single_read_variant_counts += 1
                         if v == TUMORAL_ONLY_VARIANT:
                             tumoral_only_counts += 1
@@ -203,7 +197,7 @@ for window in window_list:
                             tumoral_normal_variant_counts += 1
                         if v == NORMAL_ONLY_VARIANT:
                             normal_only_variants_counts += 1
-                    SNV_counts[SINGLE_READ_VARIANT].append(single_read_variant_counts)
+                    SNV_counts[TUMORAL_SINGLE_READ_VARIANT].append(single_read_variant_counts)
                     SNV_counts[TUMORAL_ONLY_VARIANT].append(tumoral_only_counts)
                     SNV_counts[TUMORAL_NORMAL_VARIANT].append(tumoral_normal_variant_counts)
                     SNV_counts[NORMAL_ONLY_VARIANT].append(normal_only_variants_counts)
@@ -309,8 +303,8 @@ for window in window_list:
 fig, axes = plt.subplots(4, 2, figsize=(24, 8))
 data1 = INDEL_counts[TUMORAL_NORMAL_VARIANT]
 data2 = SNV_counts[TUMORAL_NORMAL_VARIANT]
-data3 = INDEL_counts[SINGLE_READ_VARIANT]
-data4 = SNV_counts[SINGLE_READ_VARIANT]
+data3 = INDEL_counts[TUMORAL_SINGLE_READ_VARIANT]
+data4 = SNV_counts[TUMORAL_SINGLE_READ_VARIANT]
 data5 = INDEL_counts[TUMORAL_ONLY_VARIANT]
 data6 = SNV_counts[TUMORAL_ONLY_VARIANT]
 data7 = INDEL_counts[NORMAL_ONLY_VARIANT]
