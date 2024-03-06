@@ -9,7 +9,7 @@ import os
 import re
 import pysam
 from variant_extractor import VariantExtractor
-from functions import compare, anno_cigar2, dict_generator, chr_converter, encode_var  # local scripts
+from functions import compare, anno_cigar2, dict_generator, chr_converter  # local scripts
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -111,8 +111,8 @@ normal_aln_iter = samfile_N.__iter__()
 # normal_aln = next(normal_aln_iter, None)
 dict_indel_count = {}  # initialize dict to store INDELs count
 dict_snv_count = {}  # init dict to store SNVs count
-hold_iter = [False, False]
-holded_alns = [0, 0]
+hold_iter = [False, False]  # to change the window while maintaining the aln
+holded_alns = [0, 0]  # init the list
 
 for window in window_list:
     for iterIdx, current_iter in enumerate((tumor_aln_iter, normal_aln_iter)):
@@ -299,12 +299,14 @@ for window in window_list:
 # Display the histogram
 # plt.show()
 
+# ToDO: añadir en cada plot la moda y el max
+
 # Create a single figure with two subplots
 fig, axes = plt.subplots(4, 2, figsize=(24, 8))
 data1 = INDEL_counts[TUMORAL_NORMAL_VARIANT]
 data2 = SNV_counts[TUMORAL_NORMAL_VARIANT]
-data3 = INDEL_counts[TUMORAL_SINGLE_READ_VARIANT]
-data4 = SNV_counts[TUMORAL_SINGLE_READ_VARIANT]
+data3 = INDEL_counts[TUMORAL_SINGLE_READ_VARIANT]  # For now, it both tumoral and normal single reads
+data4 = SNV_counts[TUMORAL_SINGLE_READ_VARIANT]  # For now, it both tumoral and normal single reads
 data5 = INDEL_counts[TUMORAL_ONLY_VARIANT]
 data6 = SNV_counts[TUMORAL_ONLY_VARIANT]
 data7 = INDEL_counts[NORMAL_ONLY_VARIANT]
