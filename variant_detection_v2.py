@@ -432,7 +432,7 @@ with open(stats_file, "w") as file:
         maxim = np.max(data[0])
         mean = np.mean(data[0])
         median = np.median(data[0])
-        mode = mode(data[0])
+        moda = mode(data[0])
         std = np.std(data[0])
         var = np.var(data[0])
 
@@ -444,7 +444,7 @@ with open(stats_file, "w") as file:
     file.write('Max: {}\n'.format(maxim))
     file.write('Mean: {}\n'.format(mean))
     file.write('Median: {}\n'.format(median))
-    file.write('Mode: {}\n'.format(mode))
+    file.write('Mode: {}\n'.format(moda))
     file.write('Standard deviation: {}\n'.format(std))
     file.write('Variance: {}\n'.format(var))
 
