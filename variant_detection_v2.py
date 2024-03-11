@@ -12,6 +12,7 @@ from variant_extractor import VariantExtractor
 from functions import compare, anno_cigar2, dict_generator, chr_converter  # local scripts
 import matplotlib.pyplot as plt
 import numpy as np
+from statistics import mode
 
 # Record the start time
 start_time = time.time()
@@ -412,6 +413,41 @@ plt.savefig('{}hist/hist_SNVs.pdf'.format(out_dir))
 
 # Show the plot
 # plt.show()"""
+
+# Make some stats
+dataset = [(data1, "INDELs tumor-normal"),
+           (data2, "SNVs tumor-normal"),
+           (data3, "INDELs single reads"),
+           (data4, "SNVs single reads"),
+           (data5, "INDELs tumor-only"),
+           (data6, "SNVs tumor-only"),
+           (data7, "INDELs normal-only"),
+           (data8, "SNVs normal-only")]
+
+stats_file = "{}stats.txt".format(out_dir)
+with open(stats_file, "w") as file:
+    for data in dataset:
+        counts = len(data[0])
+        minim = np.min(data[0])
+        maxim = np.max(data[0])
+        mean = np.mean(data[0])
+        median = np.median(data[0])
+        mode = mode(data[0])
+        std = np.std(data[0])
+        var = np.var(data[0])
+
+    file.write('Number of windows: {}\n'.format(len(window_list)))
+    file.write("\n")
+    file.write('-------------{}-------------\n'.format(data[1]))
+    file.write('Counts: {}\n'.format(counts))
+    file.write('Min: {}\n'.format(minim))
+    file.write('Max: {}\n'.format(maxim))
+    file.write('Mean: {}\n'.format(mean))
+    file.write('Median: {}\n'.format(median))
+    file.write('Mode: {}\n'.format(mode))
+    file.write('Standard deviation: {}\n'.format(std))
+    file.write('Variance: {}\n'.format(var))
+
 
 """# Statistics
 
