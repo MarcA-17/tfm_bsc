@@ -436,17 +436,17 @@ with open(stats_file, "w") as file:
         std = np.std(data[0])
         var = np.var(data[0])
 
-    file.write('Number of windows: {}\n'.format(len(window_list)))
-    file.write("\n")
-    file.write('-------------{}-------------\n'.format(data[1]))
-    file.write('Counts: {}\n'.format(counts))
-    file.write('Min: {}\n'.format(minim))
-    file.write('Max: {}\n'.format(maxim))
-    file.write('Mean: {}\n'.format(mean))
-    file.write('Median: {}\n'.format(median))
-    file.write('Mode: {}\n'.format(moda))
-    file.write('Standard deviation: {}\n'.format(std))
-    file.write('Variance: {}\n'.format(var))
+        file.write('Number of windows: {}\n'.format(len(window_list)))
+        file.write("\n")
+        file.write('-------------{}-------------\n'.format(data[1]))
+        file.write('Counts: {}\n'.format(counts))
+        file.write('Min: {}\n'.format(minim))
+        file.write('Max: {}\n'.format(maxim))
+        file.write('Mean: {}\n'.format(mean))
+        file.write('Median: {}\n'.format(median))
+        file.write('Mode: {}\n'.format(moda))
+        file.write('Standard deviation: {}\n'.format(std))
+        file.write('Variance: {}\n'.format(var))
 
 
 """# Statistics
