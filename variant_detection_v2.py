@@ -12,7 +12,7 @@ from variant_extractor import VariantExtractor
 from functions import compare, dict_generator, chr_converter  # local scripts
 import matplotlib.pyplot as plt
 import numpy as np
-from statistics import mode
+from statistics import mode, StatisticsError
 from enum import Enum
 
 
@@ -304,7 +304,7 @@ window_list = []  # create empty list
 
 for variant in extractor:
     chr_name = chr_converter(chr_dict, variant.contig)  # we assign the integer value
-    window_list.append((chr_name, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))
+    window_list.append((variant.contig, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))
 
 # window_index = 0  # index to parse the window list
 INDEL_counts = ([], [], [], [], [], [])  # we init a list to store the INDELs for each window
@@ -318,8 +318,8 @@ SNV_counts = ([], [], [], [], [], [])  # we init a list to store the SNVs for ea
 
 # Parse vcf and sam files in parallel
 
-tumor_aln_iter = samfile_T.__iter__()
-normal_aln_iter = samfile_N.__iter__()
+#tumor_aln_iter = samfile_T.__iter__()
+#normal_aln_iter = samfile_N.__iter__()
 # tumor_aln = next(tumor_aln_iter, None)  # if there is no next alignment, then tumor_aln == None
 # normal_aln = next(normal_aln_iter, None)
 dict_indel_count = {}  # initialize dict to store INDELs count
@@ -333,6 +333,8 @@ def pick_variant(var_list):
 
 
 for window in window_list:
+    tumor_aln_iter = samfile_T.fetch(str(window[0]), window[1], window[2])
+    normal_aln_iter = samfile_N.fetch(str(window[0]), window[1], window[2])
     for iterIdx, current_iter in enumerate((tumor_aln_iter, normal_aln_iter)):
         # if hold_iter[iterIdx]:
           #  current_aln = holded_alns[iterIdx]
@@ -347,30 +349,29 @@ for window in window_list:
             # print(current_aln.reference_name, current_aln.reference_start, current_aln.reference_end,
             # window[0], window[1], window[2])
             chr_aln = chr_converter(chr_dict, current_aln.reference_name)  # we assign the integer value
-            cmp = compare(chr_aln, current_aln.reference_start, current_aln.reference_end,
-                          window[0], window[1], window[2])
+            #cmp = compare(chr_aln, current_aln.reference_start, current_aln.reference_end,window[0], window[1], window[2])
             # print('cmp:', cmp)
             # if cmp is None:
             # continue  # go back to while loop beginning
-            if -1 <= cmp <= 1:  # if intersection
-                cigar = str(current_aln.cigarstring)  # we get the cigar string
-                # cigar_tuple = tumor_aln.cigartuples  # we get the cigar_tuple
-                # print(cigar)
-                # we get the md tag and process it
-                md_tag = current_aln.get_tag("MD", with_value_type=False)
-                pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
-                md_list = re.findall(pattern_md, md_tag)
-                # print(md_list)
-                ref_pos = current_aln.reference_start  # get the reference position where the cigar begins
-                aln_chr = current_aln.reference_name  # we get the chr
-                # window = window_list[window_index]
-                # total_vars = anno_cigar2(dict_indel_count, outT, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window)
-                # anno_cigar2(dict_indel_count, dict_snv_count, outT, cigar, md_list, regexp, ref_pos, aln_chr,
-                #          symbol_add, dict_cigar,
-                #         ref_consuming, window)
-                anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, ref_pos, aln_chr, iterIdx, ref_genome,
-                            current_aln)
-                current_aln = next(current_iter, None)  # change to next alignment
+            #if -1 <= cmp <= 1:  # if intersection
+            cigar = str(current_aln.cigarstring)  # we get the cigar string
+            # cigar_tuple = tumor_aln.cigartuples  # we get the cigar_tuple
+            # print(cigar)
+            # we get the md tag and process it
+            md_tag = current_aln.get_tag("MD", with_value_type=False)
+            pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
+            md_list = re.findall(pattern_md, md_tag)
+            # print(md_list)
+            ref_pos = current_aln.reference_start  # get the reference position where the cigar begins
+            aln_chr = current_aln.reference_name  # we get the chr
+            # window = window_list[window_index]
+            # total_vars = anno_cigar2(dict_indel_count, outT, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window)
+            # anno_cigar2(dict_indel_count, dict_snv_count, outT, cigar, md_list, regexp, ref_pos, aln_chr,
+            #          symbol_add, dict_cigar,
+            #         ref_consuming, window)
+            anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, ref_pos, aln_chr, iterIdx, ref_genome,
+                        current_aln)
+            current_aln = next(current_iter, None)  # change to next alignment
                 # we annotate the variation and get the amount of variants in the tumor_aln
                 # window_vars += total_vars
                 # window_SNV += total_vars[0]
@@ -380,57 +381,57 @@ for window in window_list:
                 # print("window_INDELs:", window_INDEL)
                 # print("window_SNV_list:", window_SNV_list)
                 # print("window_INDEL_list:", window_INDEL_list)
-            if cmp < -1:  # cmp == -2 or -3
-                current_aln = next(current_iter, None)  # change to next alignment
-            if cmp > 1:  # cmp == 2 or 3
+            #if cmp < -1:  # cmp == -2 or -3
+                #current_aln = next(current_iter, None)  # change to next alignment
+            #if cmp > 1:  # cmp == 2 or 3
                 # if window_index < len(window_list)-1:  # if not the last window
-                if iterIdx == 1:
-                    single_read_variant_counts = 0
-                    tumoral_only_counts = 0
-                    tumoral_normal_variant_counts = 0
-                    normal_only_variants_counts = 0
-                    for k, v in dict_indel_count.items():
-                        # print(f'indel: {len(v)}')
-                        var_to_count: CalledGenomicVariant = pick_variant(v)
-                        if (var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or
-                                var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT):
-                            single_read_variant_counts += 1
-                        if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_ONLY_VARIANT:
-                            tumoral_only_counts += 1
-                        if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_NORMAL_VARIANT:
-                            tumoral_normal_variant_counts += 1
-                        if var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_ONLY_VARIANT:
-                            normal_only_variants_counts += 1
-                    INDEL_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value].append(single_read_variant_counts)
-                    INDEL_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
-                    INDEL_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
-                    INDEL_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value].append(normal_only_variants_counts)
-                    dict_indel_count = {}  # re-init dict
-                    single_read_variant_counts = 0
-                    tumoral_only_counts = 0
-                    tumoral_normal_variant_counts = 0
-                    normal_only_variants_counts = 0
-                    for k, v in dict_snv_count.items():
-                        # print(f'snv: {len(v)}')
-                        var_to_count: CalledGenomicVariant = pick_variant(v)
-                        if (var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or
-                                var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT):
-                            single_read_variant_counts += 1
-                        if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_ONLY_VARIANT:
-                            tumoral_only_counts += 1
-                        if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_NORMAL_VARIANT:
-                            tumoral_normal_variant_counts += 1
-                        if var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_ONLY_VARIANT:
-                            normal_only_variants_counts += 1
-                    SNV_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value].append(single_read_variant_counts)
-                    SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
-                    SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
-                    SNV_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value].append(normal_only_variants_counts)
-                    # SNV_counts.append(len(dict_snv_count))  # we store the number of variations in the window
-                    dict_snv_count = {}  # re-init dict
-                # hold_iter[iterIdx] = True
-                # holded_alns[iterIdx] = current_aln
-                break
+        if iterIdx == 1:
+            single_read_variant_counts = 0
+            tumoral_only_counts = 0
+            tumoral_normal_variant_counts = 0
+            normal_only_variants_counts = 0
+            for k, v in dict_indel_count.items():
+                # print(f'indel: {len(v)}')
+                var_to_count: CalledGenomicVariant = pick_variant(v)
+                if (var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or
+                        var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT):
+                    single_read_variant_counts += 1
+                if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_ONLY_VARIANT:
+                    tumoral_only_counts += 1
+                if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_NORMAL_VARIANT:
+                    tumoral_normal_variant_counts += 1
+                if var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_ONLY_VARIANT:
+                    normal_only_variants_counts += 1
+            INDEL_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value].append(single_read_variant_counts)
+            INDEL_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
+            INDEL_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
+            INDEL_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value].append(normal_only_variants_counts)
+            dict_indel_count = {}  # re-init dict
+            single_read_variant_counts = 0
+            tumoral_only_counts = 0
+            tumoral_normal_variant_counts = 0
+            normal_only_variants_counts = 0
+            for k, v in dict_snv_count.items():
+                # print(f'snv: {len(v)}')
+                var_to_count: CalledGenomicVariant = pick_variant(v)
+                if (var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or
+                        var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT):
+                    single_read_variant_counts += 1
+                if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_ONLY_VARIANT:
+                    tumoral_only_counts += 1
+                if var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_NORMAL_VARIANT:
+                    tumoral_normal_variant_counts += 1
+                if var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_ONLY_VARIANT:
+                    normal_only_variants_counts += 1
+            SNV_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value].append(single_read_variant_counts)
+            SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
+            SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
+            SNV_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value].append(normal_only_variants_counts)
+            # SNV_counts.append(len(dict_snv_count))  # we store the number of variations in the window
+            dict_snv_count = {}  # re-init dict
+        # hold_iter[iterIdx] = True
+        # holded_alns[iterIdx] = current_aln
+            break
                 # window_index += 1  # change to next window maintaining the alignment
                 # print(SNV_counts)
                 # window_vars_list.append(window_vars)  # store the variation amount in the list
@@ -528,8 +529,8 @@ for window in window_list:
 fig, axes = plt.subplots(4, 2, figsize=(24, 24))
 data1 = INDEL_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value]
 data2 = SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value]
-data3 = INDEL_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it both tumoral and normal single reads
-data4 = SNV_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it both tumoral and normal single reads
+data3 = INDEL_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it's both tumoral and normal single reads
+data4 = SNV_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it's both tumoral and normal single reads
 data5 = INDEL_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value]
 data6 = SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value]
 data7 = INDEL_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value]
@@ -621,10 +622,10 @@ axes[3][0].legend()
 
 # Plot for normal-only SNVs
 maxim8 = np.max(data8)
-moda8 = mode(data8)
+#moda8 = mode(data8)
 axes[3][1].hist(data8, bins=range(int(min(data8)), int(max(data8)) + 2), color='blue', alpha=0.7)
 # axes[3][1].set_xlim(left=0, right=1500)
-axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
+#axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
 axes[3][1].scatter(maxim8, 0, color="red", marker='o', label="Max: {}".format(maxim8))
 axes[3][1].set_xlabel('Number of SNVs/window')
 axes[3][1].set_ylabel('Count')
@@ -696,7 +697,10 @@ with open(stats_file, "w") as file:
         maxim = np.max(data[0])
         mean = np.mean(data[0])
         median = np.median(data[0])
-        moda = mode(data[0])
+        try:
+            moda = mode(data[0])
+        except StatisticsError:
+            mode = "Undefined"
         std = np.std(data[0])
         var = np.var(data[0])
         file.write('-------------{}-------------\n'.format(data[1]))
