@@ -26,7 +26,6 @@ class SomaticVariationType(Enum):
 
 
 class CalledGenomicVariant:
-
     TYPE_SNV = 'SNV'
     TYPE_INDEL = 'INDEL'
 
@@ -38,6 +37,10 @@ class CalledGenomicVariant:
         self.length = length
         self.allele: str = allele
         self.somatic_variation_type = SomaticVariationType.UNCLASSIFIED
+        self.supporting_reads: int = 1
+
+    def add_supporting_read(self):
+        self.supporting_reads += 1
 
     def __eq__(self, var2):
         if self.seq_name != var2.seq_name:
@@ -127,7 +130,8 @@ chr_dict = dict_generator(ref_genome)
 print("End dict.")
 
 
-def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_pos, aln_chr, datasetIdx, ref_genome, aln):
+def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_pos, aln_chr, datasetIdx, ref_genome,
+                aln):
     """This function takes a cigar string and annotates all the changes that it contains in an output file, while
     it returns the amount of changes annotated. It returns the number of potential SNVs and INDELs within the window.
     regexp: splits the cigar string
@@ -141,7 +145,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
     ref_consuming = ['M', 'D', 'N', '=', 'X']  # stores reference consuming cigar operations
     # read_consuming_only = ['S', 'H', 'M', 'I', 'N', '=', 'X'] # stores read consuming cigar operations
     read_consuming_only = ['S', 'H', 'I']  # stores read consuming cigar operations
-    cigar_indels = ["I", "D"]  # cigar operations to report
+    cigar_indels = ["I", "D"]  # cigar operations to report as INDEL
     dict_cigar = {"X": "MM", "I": "INS", "D": "DEL"}
     dict_tuples = {0: "M", 1: "I", 2: "D", 3: "N", 4: "S", 5: "H", 6: "P", 7: "=", 8: "X", 9: "B"}
     # read_sequence = aln.get_forward_sequence()
@@ -153,7 +157,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
     cigar_list_idx = 0  # to parse cigar_list
     current_ref_cigar_len = 0  # to track the position in the genome
     # We parse the md tag to get the mismatches
-    ref_mismatch_positions = []
+    ref_mismatch_positions = []  # list to store the mismatch positions
     md_pos = 0  # to parse md_list
     md_length = 0  # to track the position in the genome
     for symbol in md_positions_list:
@@ -198,7 +202,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                 print(f'Idx: {datasetIdx} SNV: {unique_string_snv} code: {dict_snv_count[unique_string_snv]}')
                 # dict_snv_count[unique_string_snv] += 1"""
         md_pos += 1
-    mm_pos_idx = 0
+    mm_pos_idx = 0  # index to parse ref_mismatch_positions list
     # mm_ref_pos = ref_mismatch_positions[mm_pos_idx]
     for cigar_list_idx, symbol in enumerate(cigar_list):
         if symbol.isdigit():
@@ -211,13 +215,14 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                 var_type = cigar_op
                 length = symbol
                 # unique_string_indel = encode_var(pos_init, pos_end, var_type, length)
-                called_indel = CalledGenomicVariant(chr_name, pos_init, pos_end, CalledGenomicVariant.TYPE_INDEL, int(symbol), "")
+                called_indel = CalledGenomicVariant(chr_name, pos_init, pos_end, CalledGenomicVariant.TYPE_INDEL,
+                                                    int(symbol), "")
                 # we store the variation in the dict
                 if called_indel.pos not in indel_dict:
                     indel_dict[called_indel.pos] = []
                 indel_pos_list = indel_dict[called_indel.pos]
                 indel_exists = False
-                for var_indel in indel_pos_list:
+                for var_indel in indel_pos_list:  # we check whether the indel exists
                     if called_indel == var_indel:
                         called_indel = var_indel
                         indel_exists = True
@@ -230,6 +235,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                     indel_dict[called_indel.pos].append(called_indel)
                 else:  # if the variation is already annotated in the dict
                     var_code = called_indel.somatic_variation_type
+                    called_indel.add_supporting_read()  # we add 1 supporting read
                     if datasetIdx == 0:
                         if var_code == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or var_code == SomaticVariationType.NORMAL_ONLY_VARIANT:
                             called_indel.somatic_variation_type = SomaticVariationType.TUMORAL_NORMAL_VARIANT
@@ -242,7 +248,8 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                             called_indel.somatic_variation_type = SomaticVariationType.NORMAL_ONLY_VARIANT
             if cigar_op in ref_consuming:
                 current_ref_cigar_len += int(symbol)
-            if cigar_op == 'M' and len(ref_mismatch_positions) > 0:  # works only if mismatches and matches are coded as M
+            if cigar_op == 'M' and len(
+                    ref_mismatch_positions) > 0:  # works only if mismatches and matches are coded as M
                 if len(ref_mismatch_positions) == 0 or mm_pos_idx >= len(ref_mismatch_positions):
                     continue
                 mm_ref_pos = ref_mismatch_positions[mm_pos_idx]
@@ -256,14 +263,14 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                     # print(f'{pos_snv} : {substitution}')
                     # unique_string_snv = "{};{}".format(pos_snv, substitution)
                     # we store the variation in the dict
-                    if substitution != 'N':
+                    if substitution != 'N':  # N = unknown base
                         called_snv = CalledGenomicVariant(chr_name, pos_snv, pos_snv, CalledGenomicVariant.TYPE_SNV, 1,
                                                           substitution)
                         if called_snv.pos not in snv_dict:
                             snv_dict[called_snv.pos] = []
                         snv_pos_list = snv_dict[called_snv.pos]
                         snv_exists = False
-                        for var_snv in snv_pos_list:
+                        for var_snv in snv_pos_list:  # we check whether the snv exists
                             if called_snv == var_snv:
                                 called_snv = var_snv
                                 snv_exists = True
@@ -277,6 +284,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                             snv_pos_list.append(called_snv)
                         else:
                             var_code = called_snv.somatic_variation_type
+                            called_snv.add_supporting_read()  # we add 1 supporting read
                             # print(f'2. Idx: {datasetIdx} SNV: {called_snv.pos}-{called_snv.allele} code: {var_code}')
                             if datasetIdx == 0:
                                 if var_code == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or var_code == SomaticVariationType.NORMAL_ONLY_VARIANT:
@@ -289,13 +297,13 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                                 if var_code == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT:
                                     called_snv.somatic_variation_type = SomaticVariationType.NORMAL_ONLY_VARIANT
                             # print(
-                              # f'3. Idx: {datasetIdx} SNV: {called_snv.pos}-{called_snv.allele} code: {called_snv.somatic_variation_type}')
+                            # f'3. Idx: {datasetIdx} SNV: {called_snv.pos}-{called_snv.allele} code: {called_snv.somatic_variation_type}')
                     mm_pos_idx += 1
                     if mm_pos_idx < len(ref_mismatch_positions):
                         mm_ref_pos = ref_mismatch_positions[mm_pos_idx]
             if cigar_op in read_consuming_only:
                 read_consumed_bases += int(symbol)
-            if cigar_op == 'D':
+            if cigar_op == 'D':  # D = DEL
                 read_consumed_bases -= int(symbol)
 
 
@@ -318,17 +326,21 @@ SNV_counts = ([], [], [], [], [], [])  # we init a list to store the SNVs for ea
 
 # Parse vcf and sam files in parallel
 
-#tumor_aln_iter = samfile_T.__iter__()
-#normal_aln_iter = samfile_N.__iter__()
+# tumor_aln_iter = samfile_T.__iter__()
+# normal_aln_iter = samfile_N.__iter__()
 # tumor_aln = next(tumor_aln_iter, None)  # if there is no next alignment, then tumor_aln == None
 # normal_aln = next(normal_aln_iter, None)
 dict_indel_count = {}  # initialize dict to store INDELs count
 dict_snv_count = {}  # init dict to store SNVs count
+
+
 # hold_iter = [False, False]  # to change the window while maintaining the aln
 # holded_alns = [0, 0]  # init the list
 
 
 def pick_variant(var_list):
+    """This function is meant to give priority to variants based on its variation somatic type
+    in cases when there are multiple variant types in the same position."""
     return max(var_list, key=lambda var: var.somatic_variation_type.value)
 
 
@@ -337,8 +349,8 @@ for window in window_list:
     normal_aln_iter = samfile_N.fetch(str(window[0]), window[1], window[2])
     for iterIdx, current_iter in enumerate((tumor_aln_iter, normal_aln_iter)):
         # if hold_iter[iterIdx]:
-          #  current_aln = holded_alns[iterIdx]
-          #  hold_iter[iterIdx] = False
+        #  current_aln = holded_alns[iterIdx]
+        #  hold_iter[iterIdx] = False
         # else:
         current_aln = next(current_iter, None)
         while current_aln is not None:
@@ -349,11 +361,11 @@ for window in window_list:
             # print(current_aln.reference_name, current_aln.reference_start, current_aln.reference_end,
             # window[0], window[1], window[2])
             chr_aln = chr_converter(chr_dict, current_aln.reference_name)  # we assign the integer value
-            #cmp = compare(chr_aln, current_aln.reference_start, current_aln.reference_end,window[0], window[1], window[2])
+            # cmp = compare(chr_aln, current_aln.reference_start, current_aln.reference_end,window[0], window[1], window[2])
             # print('cmp:', cmp)
             # if cmp is None:
             # continue  # go back to while loop beginning
-            #if -1 <= cmp <= 1:  # if intersection
+            # if -1 <= cmp <= 1:  # if intersection
             cigar = str(current_aln.cigarstring)  # we get the cigar string
             # cigar_tuple = tumor_aln.cigartuples  # we get the cigar_tuple
             # print(cigar)
@@ -372,19 +384,19 @@ for window in window_list:
             anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, ref_pos, aln_chr, iterIdx, ref_genome,
                         current_aln)
             current_aln = next(current_iter, None)  # change to next alignment
-                # we annotate the variation and get the amount of variants in the tumor_aln
-                # window_vars += total_vars
-                # window_SNV += total_vars[0]
-                # window_INDEL += total_vars[1]
-                # print("total_vars:", total_vars)
-                # print("window_SNVs:", window_SNV)
-                # print("window_INDELs:", window_INDEL)
-                # print("window_SNV_list:", window_SNV_list)
-                # print("window_INDEL_list:", window_INDEL_list)
-            #if cmp < -1:  # cmp == -2 or -3
-                #current_aln = next(current_iter, None)  # change to next alignment
-            #if cmp > 1:  # cmp == 2 or 3
-                # if window_index < len(window_list)-1:  # if not the last window
+            # we annotate the variation and get the amount of variants in the tumor_aln
+            # window_vars += total_vars
+            # window_SNV += total_vars[0]
+            # window_INDEL += total_vars[1]
+            # print("total_vars:", total_vars)
+            # print("window_SNVs:", window_SNV)
+            # print("window_INDELs:", window_INDEL)
+            # print("window_SNV_list:", window_SNV_list)
+            # print("window_INDEL_list:", window_INDEL_list)
+            # if cmp < -1:  # cmp == -2 or -3
+            # current_aln = next(current_iter, None)  # change to next alignment
+            # if cmp > 1:  # cmp == 2 or 3
+            # if window_index < len(window_list)-1:  # if not the last window
         if iterIdx == 1:
             single_read_variant_counts = 0
             tumoral_only_counts = 0
@@ -429,19 +441,19 @@ for window in window_list:
             SNV_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value].append(normal_only_variants_counts)
             # SNV_counts.append(len(dict_snv_count))  # we store the number of variations in the window
             dict_snv_count = {}  # re-init dict
-        # hold_iter[iterIdx] = True
-        # holded_alns[iterIdx] = current_aln
+            # hold_iter[iterIdx] = True
+            # holded_alns[iterIdx] = current_aln
             break
-                # window_index += 1  # change to next window maintaining the alignment
-                # print(SNV_counts)
-                # window_vars_list.append(window_vars)  # store the variation amount in the list
-                # window_vars = 0  # restore the counter
-                # window_SNV_list.append(window_SNV)  # store the variation amount in the list
-                # window_SNV = 0  # restore the counter
-                # window_INDEL_list.append(window_INDEL)  # store the variation amount in the list
-                # window_INDEL = 0  # restore the counter
-                # else:  # if there are no more windows and no intersection
-                #   break
+            # window_index += 1  # change to next window maintaining the alignment
+            # print(SNV_counts)
+            # window_vars_list.append(window_vars)  # store the variation amount in the list
+            # window_vars = 0  # restore the counter
+            # window_SNV_list.append(window_SNV)  # store the variation amount in the list
+            # window_SNV = 0  # restore the counter
+            # window_INDEL_list.append(window_INDEL)  # store the variation amount in the list
+            # window_INDEL = 0  # restore the counter
+            # else:  # if there are no more windows and no intersection
+            #   break
     # if hold_iter[0] and hold_iter[1]:
     #  continue
 
@@ -529,8 +541,10 @@ for window in window_list:
 fig, axes = plt.subplots(4, 2, figsize=(24, 24))
 data1 = INDEL_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value]
 data2 = SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value]
-data3 = INDEL_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it's both tumoral and normal single reads
-data4 = SNV_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it's both tumoral and normal single reads
+data3 = INDEL_counts[
+    SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it's both tumoral and normal single reads
+data4 = SNV_counts[
+    SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value]  # For now, it's both tumoral and normal single reads
 data5 = INDEL_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value]
 data6 = SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value]
 data7 = INDEL_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value]
@@ -622,10 +636,10 @@ axes[3][0].legend()
 
 # Plot for normal-only SNVs
 maxim8 = np.max(data8)
-#moda8 = mode(data8)
+# moda8 = mode(data8)
 axes[3][1].hist(data8, bins=range(int(min(data8)), int(max(data8)) + 2), color='blue', alpha=0.7)
 # axes[3][1].set_xlim(left=0, right=1500)
-#axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
+# axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
 axes[3][1].scatter(maxim8, 0, color="red", marker='o', label="Max: {}".format(maxim8))
 axes[3][1].set_xlabel('Number of SNVs/window')
 axes[3][1].set_ylabel('Count')
