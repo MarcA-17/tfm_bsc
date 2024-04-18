@@ -315,8 +315,10 @@ for variant in extractor:
     window_list.append((variant.contig, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))
 
 # window_index = 0  # index to parse the window list
-INDEL_counts = ([], [], [], [], [], [])  # we init a list to store the INDELs for each window
-SNV_counts = ([], [], [], [], [], [])  # we init a list to store the SNVs for each window
+INDEL_counts = ([], [], [], [], [], [])  # tuple to store the INDELs
+SNV_counts = ([], [], [], [], [], [])  # tuple to store the SNVs
+INDEL_supp_reads_count = ([], [], [], [], [], [])
+SNV_supp_reads_count = ([], [], [], [], [], [])
 # window_vars_list = []  # list lo store the variations in each window
 # window_vars = 0  # counter for the number of variations in each window
 # window_SNV_list = []  # list lo store the SNVs in each window
@@ -414,6 +416,7 @@ for window in window_list:
                     tumoral_normal_variant_counts += 1
                 if var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_ONLY_VARIANT:
                     normal_only_variants_counts += 1
+                INDEL_supp_reads_count[var_to_count.somatic_variation_type.value].append(var_to_count.supporting_reads)
             INDEL_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value].append(single_read_variant_counts)
             INDEL_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
             INDEL_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
@@ -435,6 +438,7 @@ for window in window_list:
                     tumoral_normal_variant_counts += 1
                 if var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_ONLY_VARIANT:
                     normal_only_variants_counts += 1
+                SNV_supp_reads_count[var_to_count.somatic_variation_type.value].append(var_to_count.supporting_reads)
             SNV_counts[SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT.value].append(single_read_variant_counts)
             SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
             SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
@@ -726,6 +730,14 @@ with open(stats_file, "w") as file:
         file.write('Mode: {}\n'.format(moda))
         file.write('Standard deviation: {}\n'.format(std))
         file.write('Variance: {}\n'.format(var))
+
+# Supporting reads stats
+
+for i in INDEL_supp_reads_count:
+    print(len(i))
+
+for i in SNV_supp_reads_count:
+    print(len(i))
 
 """# Statistics
 
