@@ -747,16 +747,25 @@ with open(supporting_stats_file, "w") as file:
         file.write("\n")
         for i in data[0]:
             counts = len(i)
-            minim = np.min(i)
-            maxim = np.max(i)
-            mean = np.mean(i)
-            median = np.median(i)
-            try:
-                moda = mode(i)
-            except StatisticsError:
-                moda = "Undefined"
-            std = np.std(i)
-            var = np.var(i)
+            if len(i) == 0:  # Check if the list is empty
+                minim = None
+                maxim = None
+                mean = None
+                median = None
+                moda = None
+                std = None
+                var = None
+            else:
+                minim = np.min(i)
+                maxim = np.max(i)
+                mean = np.mean(i)
+                median = np.median(i)
+                try:
+                    moda = mode(i)
+                except StatisticsError:
+                    moda = "Undefined"
+                std = np.std(i)
+                var = np.var(i)
             # write the results
             file.write('-------------{}-------------\n'.format(var_type[idx]))
             file.write('Counts: {}\n'.format(counts))
@@ -812,6 +821,8 @@ end_time = time.time()
 
 # Calculate and print the total execution time
 total_time_s = end_time - start_time
+total_time_min = round(total_time_s / 60, 2)
 total_time_h = round(total_time_s / 3600, 2)
 # print(f"Total execution time: {total_time_s} seconds.")
+print(f"Total execution time: {total_time_min} min.")
 print(f"Total execution time: {total_time_h} h.")
