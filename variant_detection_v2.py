@@ -742,10 +742,11 @@ var_type = ["UNCLASSIFIED", "NORMAL_SINGLE_READ_VARIANT", "TUMORAL_SINGLE_READ_V
 supporting_stats_file = "{}supporting_reads_stats.txt".format(out_dir)
 with open(supporting_stats_file, "w") as file:
     file.write('Supporting reads summary\n')
-    for idx, data in enumerate(dataset_supporting):
-        file.write('-------------{}-------------\n'.format(data[1]))
+    file.write("\n")
+    for data in dataset_supporting:
+        file.write('--------------------{}--------------------\n'.format(data[1]))
         file.write("\n")
-        for i in data[0]:
+        for idx, i in enumerate(data[0]):
             counts = len(i)
             if len(i) == 0:  # Check if the list is empty
                 minim = None
@@ -776,6 +777,7 @@ with open(supporting_stats_file, "w") as file:
             file.write('Mode: {}\n'.format(moda))
             file.write('Standard deviation: {}\n'.format(std))
             file.write('Variance: {}\n'.format(var))
+            file.write("\n")
 
 """# Statistics
 
