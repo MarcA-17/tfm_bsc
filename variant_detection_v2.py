@@ -718,7 +718,7 @@ with open(stats_file, "w") as file:
         try:
             moda = mode(data[0])
         except StatisticsError:
-            mode = "Undefined"
+            moda = "Undefined"
         std = np.std(data[0])
         var = np.var(data[0])
         file.write('-------------{}-------------\n'.format(data[1]))
@@ -733,11 +733,40 @@ with open(stats_file, "w") as file:
 
 # Supporting reads stats
 
-for i in INDEL_supp_reads_count:
-    print(len(i))
+dataset_supporting = [(INDEL_supp_reads_count, "INDELs"),
+                      (SNV_supp_reads_count, "SNVs")]
 
-for i in SNV_supp_reads_count:
-    print(len(i))
+var_type = ["UNCLASSIFIED", "NORMAL_SINGLE_READ_VARIANT", "TUMORAL_SINGLE_READ_VARIANT", "NORMAL_ONLY_VARIANT",
+            "TUMORAL_ONLY_VARIANT", "TUMORAL_NORMAL_VARIANT"]
+
+supporting_stats_file = "{}supporting_reads_stats.txt".format(out_dir)
+with open(supporting_stats_file, "w") as file:
+    file.write('Supporting reads summary\n')
+    for idx, data in enumerate(dataset_supporting):
+        file.write('-------------{}-------------\n'.format(data[1]))
+        file.write("\n")
+        for i in data[0]:
+            counts = len(i)
+            minim = np.min(i)
+            maxim = np.max(i)
+            mean = np.mean(i)
+            median = np.median(i)
+            try:
+                moda = mode(i)
+            except StatisticsError:
+                moda = "Undefined"
+            std = np.std(i)
+            var = np.var(i)
+            # write the results
+            file.write('-------------{}-------------\n'.format(var_type[idx]))
+            file.write('Counts: {}\n'.format(counts))
+            file.write('Min: {}\n'.format(minim))
+            file.write('Max: {}\n'.format(maxim))
+            file.write('Mean: {}\n'.format(mean))
+            file.write('Median: {}\n'.format(median))
+            file.write('Mode: {}\n'.format(moda))
+            file.write('Standard deviation: {}\n'.format(std))
+            file.write('Variance: {}\n'.format(var))
 
 """# Statistics
 
