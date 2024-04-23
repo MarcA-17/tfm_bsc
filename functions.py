@@ -1,14 +1,26 @@
 """This script contains all the functions created for the variant_detection script"""
 
 import re
+import sys
 import pysam
+from variant_extractor import VariantExtractor
 
+in_N_bam = sys.argv[1]
+in_T_bam = sys.argv[2]
+in_ref = sys.argv[3]
+in_vcf = sys.argv[4]
+
+samfile_N = pysam.AlignmentFile(in_N_bam, 'rb')  # read a bam file
+samfile_T = pysam.AlignmentFile(in_T_bam, 'rb')
+extractor = VariantExtractor(in_vcf)
+ref_genome = pysam.Fastafile(in_ref)
 
 TUMORAL_SINGLE_READ_VARIANT = 0
 NORMAL_SINGLE_READ_VARIANT = 1
 TUMORAL_ONLY_VARIANT = 2
 NORMAL_ONLY_VARIANT = 3
 TUMORAL_NORMAL_VARIANT = 4
+
 
 def intersect(alignment, variant):
     """This function is meant to assess whether an alignment from a samfile -opened with pysam- intersects with a
@@ -118,6 +130,7 @@ def encode_var(pos_init, pos_end, var_type, length):
     unique_string = "{};{};{};{}".format(pos_init, pos_end, var_type, length)
     return unique_string
 
+
 def dict_generator(fasta_file):
     """This function parses a fasta file (ideally the human reference genome) and returns a dictionary
         whose keys are the chr names and whose values are an integer representing their ordinal number"""
@@ -126,7 +139,7 @@ def dict_generator(fasta_file):
     # ordinal = 1  # initialize the ordinal sequence
     ref_sequences = fasta_file.references
     chr_dict = {k: v for (k, v) in zip(ref_sequences, range(len(ref_sequences)))}
-    #with open(fasta, "r") as file:
+    # with open(fasta, "r") as file:
     #    for line in file:
     #        if line.startswith(">"):
     #            key = line[1:].split()[0]  # we get the chr name
@@ -141,3 +154,32 @@ def chr_converter(chr_dict, chr_name):
 
     chr_integer = chr_dict[chr_name]
     return chr_integer
+
+
+chr_dict = dict_generator(ref_genome)
+
+
+def get_windows(variants, ref_genome, window_size=2000):
+    half_window = int(window_size / 2)
+    windows = dict()
+    for seq in ref_genome.references:
+        # seq_converted = chr_converter(chr_dict, seq)
+        windows[seq] = []
+    for variant in variants:
+        windows_in_seq = windows[variant.contig]
+        if variant.variant_type == "INV":  # VariantType.INV
+            if variant.pos + half_window > variant.end - half_window:
+                windows_in_seq.append((variant.pos - half_window, variant.end + half_window, variant))
+            else:
+                windows_in_seq.append((variant.pos - half_window, variant.pos + half_window, variant))
+                windows_in_seq.append((variant.end - half_window, variant.end + half_window, variant))
+        elif variant.variant_type == "TRA":  # VariantType.TRA
+            windows_in_seq.append((variant.pos - half_window, variant.pos + half_window, variant))
+            windows_in_seq.append((variant.end - half_window, variant.end + half_window, variant))
+        elif variant.variant_type == "SNV":  # VariantType.SNV
+            windows_in_seq.append((variant.pos - half_window, variant.pos + half_window, variant))
+        else:
+            windows_in_seq.append((variant.pos - half_window, variant.end + half_window, variant))
+    for seq_name, seq_windows in windows.items():
+        seq_windows.sort(key=lambda x: (x[0], x[1]))
+    return windows
