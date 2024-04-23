@@ -349,10 +349,11 @@ for seq_name, seq_windows in windows.items():
     # Print the chromosome name
     print('Chr:{}'.format(seq_name))
 
-    for window in windows:
+    for window in seq_windows:
         '''tumor_aln_iter = samfile_T.fetch(str(window[0]), window[1], window[2])
         normal_aln_iter = samfile_N.fetch(str(window[0]), window[1], window[2])'''
 
+        print(window)
         start_pos, end_pos, variant = window
         variant_chr = variant.contig
         variant_pos = variant.pos
