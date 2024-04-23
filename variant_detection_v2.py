@@ -353,7 +353,7 @@ for seq_name, seq_windows in windows.items():
         '''tumor_aln_iter = samfile_T.fetch(str(window[0]), window[1], window[2])
         normal_aln_iter = samfile_N.fetch(str(window[0]), window[1], window[2])'''
 
-        print(window)
+        #print(window)
         start_pos, end_pos, variant = window
         variant_chr = variant.contig
         variant_pos = variant.pos
@@ -718,9 +718,13 @@ dataset = [(data1, "INDELs tumor-normal"),
            (data7, "INDELs normal-only"),
            (data8, "SNVs normal-only")]
 
+total_windows = 0
+for chr in windows:
+    total_windows += len(windows[chr])
+
 stats_file = "{}stats.txt".format(out_dir)
 with open(stats_file, "w") as file:
-    file.write('Number of windows: {}\n'.format(len(window_list)))
+    file.write('Number of windows: {}\n'.format(total_windows))
     file.write("\n")
     for data in dataset:
         counts = len(data[0])
