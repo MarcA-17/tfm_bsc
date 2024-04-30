@@ -310,6 +310,11 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
 # Create a 2000 kb window for each variant
 windows = get_windows(extractor, ref_genome, window_size=2000)
 
+total_windows = 0
+for chr in windows:
+    total_windows += len(windows[chr])
+print(total_windows)
+
 '''for variant in extractor:
     chr_name = chr_converter(chr_dict, variant.contig)  # we assign the integer value
     window_list.append((variant.contig, variant.pos - 1000, variant.pos + 1000, variant.variant_type.name))'''
