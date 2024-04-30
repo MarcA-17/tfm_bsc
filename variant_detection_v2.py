@@ -365,7 +365,7 @@ for seq_name, seq_windows in windows.items():
         variant_end = variant.end
 
         tumor_aln_iter = samfile_T.fetch(variant_chr, variant_pos, variant_end)
-        normal_aln_iter = samfile_T.fetch(variant_chr, variant_pos, variant_end)
+        normal_aln_iter = samfile_N.fetch(variant_chr, variant_pos, variant_end)
 
         for iterIdx, current_iter in enumerate((tumor_aln_iter, normal_aln_iter)):
             # if hold_iter[iterIdx]:
