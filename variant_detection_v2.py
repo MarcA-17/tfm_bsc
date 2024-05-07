@@ -559,8 +559,7 @@ for seq_name, seq_windows in windows.items():
 # Display the histogram
 # plt.show()
 
-# Create a single figure with two subplots
-fig, axes = plt.subplots(4, 2, figsize=(24, 24))
+# Define the data
 data1 = INDEL_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value]
 data2 = SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value]
 data3 = INDEL_counts[
@@ -572,10 +571,50 @@ data6 = SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value]
 data7 = INDEL_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value]
 data8 = SNV_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value]
 
+# Process data to plot (remove outliers): std method
+
+raw_data = [data1, data2, data3, data4, data5, data6, data7, data8]
+processed_data = []
+multiplier = 3
+
+for i in raw_data:
+    # Calculate mean and standard deviation
+    mean = np.mean(i)
+    std_dev = np.std(i)
+
+    # Define thresholds
+    lower_threshold = mean - multiplier * std_dev
+    upper_threshold = mean + multiplier * std_dev
+
+    # Filter samples based on the standard deviation method
+    filtered_samples = [x for x in i if x >= lower_threshold and x <= upper_threshold]
+
+    # Add filtered samples to processed data
+    processed_data.append(filtered_samples)
+
+# Process data to remove 0s
+
+data_non0 = []
+for i in processed_data:
+    # Remove zeros from the dataset using list comprehension
+    non_zero_data = [x for x in i if x != 0]
+
+    # Add non-zero data to the data_non0 list
+    data_non0.append(non_zero_data)
+
+# Normalize the data with log10 transformation
+
+normalized_data = []
+for data in processed_data:
+    normalized_data.append([np.log10(x) if x > 0 else 0 for x in data])
+
+# Create a single figure with subplots
+fig, axes = plt.subplots(4, 2, figsize=(24, 24))
+
 # Plot for potential germinal INDELs
-maxim1 = np.max(data1)
-moda1 = mode(data1)
-axes[0][0].hist(data1, bins=range(int(min(data1)), int(max(data1)) + 2), color='blue', alpha=0.7)
+maxim1 = np.max(processed_data[0])
+moda1 = mode(processed_data[0])
+axes[0][0].hist(processed_data[0], bins=range(int(min(processed_data[0])), int(max(processed_data[0])) + 2), color='blue', alpha=0.7)
 # axes[0][0].set_xlim(left=0, right=25)
 axes[0][0].scatter(moda1, 0, color="green", marker='o', label="Mode: {}".format(moda1))
 axes[0][0].scatter(maxim1, 0, color="red", marker='o', label="Max: {}".format(maxim1))
@@ -585,9 +624,9 @@ axes[0][0].set_title('Potential germline INDEL counts for 2kb windows')
 axes[0][0].legend()
 
 # Plot for potential germinal SNVs
-maxim2 = np.max(data2)
-moda2 = mode(data2)
-axes[0][1].hist(data2, bins=range(int(min(data2)), int(max(data2)) + 2), color='blue', alpha=0.7)
+maxim2 = np.max(processed_data[1])
+moda2 = mode(processed_data[1])
+axes[0][1].hist(processed_data[1], bins=range(int(min(processed_data[1])), int(max(processed_data[1])) + 2), color='blue', alpha=0.7)
 # axes[0][1].set_xlim(left=0, right=1000)
 axes[0][1].scatter(moda2, 0, color="green", marker='o', label="Mode: {}".format(moda2))
 axes[0][1].scatter(maxim2, 0, color="red", marker='o', label="Max: {}".format(maxim2))
@@ -597,9 +636,9 @@ axes[0][1].set_title('Potential germline SNV counts for 2kb windows')
 axes[0][1].legend()
 
 # Plot for single-read INDELs
-maxim3 = np.max(data3)
-moda3 = mode(data3)
-axes[1][0].hist(data3, bins=range(int(min(data3)), int(max(data3)) + 2), color='blue', alpha=0.7)
+maxim3 = np.max(processed_data[2])
+moda3 = mode(processed_data[2])
+axes[1][0].hist(processed_data[2], bins=range(int(min(processed_data[2])), int(max(processed_data[2])) + 2), color='blue', alpha=0.7)
 # axes[1][0].set_xlim(left=0, right=100)
 axes[1][0].scatter(moda3, 0, color="green", marker='o', label="Mode: {}".format(moda3))
 axes[1][0].scatter(maxim3, 0, color="red", marker='o', label="Max: {}".format(maxim3))
@@ -609,9 +648,9 @@ axes[1][0].set_title('Single-read INDEL counts for 2kb windows')
 axes[1][0].legend()
 
 # Plot for single-read SNVs
-maxim4 = np.max(data4)
-moda4 = mode(data4)
-axes[1][1].hist(data4, bins=range(int(min(data4)), int(max(data4)) + 2), color='blue', alpha=0.7)
+maxim4 = np.max(processed_data[3])
+moda4 = mode(processed_data[3])
+axes[1][1].hist(processed_data[3], bins=range(int(min(processed_data[3])), int(max(processed_data[3])) + 2), color='blue', alpha=0.7)
 # axes[1][1].set_xlim(left=0, right=1500)
 axes[1][1].scatter(moda4, 0, color="green", marker='o', label="Mode: {}".format(moda4))
 axes[1][1].scatter(maxim4, 0, color="red", marker='o', label="Max: {}".format(maxim4))
@@ -621,9 +660,9 @@ axes[1][1].set_title('Single-read SNV counts for 2kb windows')
 axes[1][1].legend()
 
 # Plot for tumoral-only INDELs
-maxim5 = np.max(data5)
-moda5 = mode(data5)
-axes[2][0].hist(data5, bins=range(int(min(data5)), int(max(data5)) + 2), color='blue', alpha=0.7)
+maxim5 = np.max(processed_data[4])
+moda5 = mode(processed_data[4])
+axes[2][0].hist(processed_data[4], bins=range(int(min(processed_data[4])), int(max(processed_data[4])) + 2), color='blue', alpha=0.7)
 # axes[2][0].set_xlim(left=0, right=100)
 axes[2][0].scatter(moda5, 0, color="green", marker='o', label="Mode: {}".format(moda5))
 axes[2][0].scatter(maxim5, 0, color="red", marker='o', label="Max: {}".format(maxim5))
@@ -633,9 +672,9 @@ axes[2][0].set_title('Tumoral-only INDEL counts for 2kb windows')
 axes[2][0].legend()
 
 # Plot for tumoral-only SNVs
-maxim6 = np.max(data6)
-moda6 = mode(data6)
-axes[2][1].hist(data6, bins=range(int(min(data6)), int(max(data6)) + 2), color='blue', alpha=0.7)
+maxim6 = np.max(processed_data[5])
+moda6 = mode(processed_data[5])
+axes[2][1].hist(processed_data[5], bins=range(int(min(processed_data[5])), int(max(processed_data[5])) + 2), color='blue', alpha=0.7)
 # axes[2][1].set_xlim(left=0, right=1500)
 axes[2][1].scatter(moda6, 0, color="green", marker='o', label="Mode: {}".format(moda6))
 axes[2][1].scatter(maxim6, 0, color="red", marker='o', label="Max: {}".format(maxim6))
@@ -645,9 +684,9 @@ axes[2][1].set_title('Tumoral-only SNV counts for 2kb windows')
 axes[2][1].legend()
 
 # Plot for normal-only INDELs
-maxim7 = np.max(data7)
-moda7 = mode(data7)
-axes[3][0].hist(data7, bins=range(int(min(data7)), int(max(data7)) + 2), color='blue', alpha=0.7)
+maxim7 = np.max(processed_data[6])
+moda7 = mode(processed_data[6])
+axes[3][0].hist(processed_data[6], bins=range(int(min(processed_data[6])), int(max(processed_data[6])) + 2), color='blue', alpha=0.7)
 # axes[3][0].set_xlim(left=0, right=100)
 axes[3][0].scatter(moda7, 0, color="green", marker='o', label="Mode: {}".format(moda7))
 axes[3][0].scatter(maxim7, 0, color="red", marker='o', label="Max: {}".format(maxim7))
@@ -657,9 +696,9 @@ axes[3][0].set_title('Normal-only INDEL counts for 2kb windows')
 axes[3][0].legend()
 
 # Plot for normal-only SNVs
-maxim8 = np.max(data8)
-# moda8 = mode(data8)
-axes[3][1].hist(data8, bins=range(int(min(data8)), int(max(data8)) + 2), color='blue', alpha=0.7)
+maxim8 = np.max(processed_data[7])
+# moda8 = mode(processed_data[7])
+axes[3][1].hist(processed_data[7], bins=range(int(min(processed_data[7])), int(max(processed_data[7])) + 2), color='blue', alpha=0.7)
 # axes[3][1].set_xlim(left=0, right=1500)
 # axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
 axes[3][1].scatter(maxim8, 0, color="red", marker='o', label="Max: {}".format(maxim8))
@@ -673,6 +712,217 @@ plt.tight_layout()
 
 # Save the combined plot
 plt.savefig('{}/hist_combined.pdf'.format(out_dir))
+
+# Create a single figure with subplots (plot non0 data)
+fig, axes = plt.subplots(4, 2, figsize=(24, 24))
+
+# Plot for potential germinal INDELs
+maxim1 = np.max(data_non0[0])
+moda1 = mode(data_non0[0])
+axes[0][0].hist(data_non0[0], bins=range(int(min(data_non0[0])), int(max(data_non0[0])) + 2), color='blue', alpha=0.7)
+# axes[0][0].set_xlim(left=0, right=25)
+axes[0][0].scatter(moda1, 0, color="green", marker='o', label="Mode: {}".format(moda1))
+axes[0][0].scatter(maxim1, 0, color="red", marker='o', label="Max: {}".format(maxim1))
+axes[0][0].set_xlabel('Number of INDELs/window')
+axes[0][0].set_ylabel('Count')
+axes[0][0].set_title('Potential germline INDEL counts for 2kb windows')
+axes[0][0].legend()
+
+# Plot for potential germinal SNVs
+maxim2 = np.max(data_non0[1])
+moda2 = mode(data_non0[1])
+axes[0][1].hist(data_non0[1], bins=range(int(min(data_non0[1])), int(max(data_non0[1])) + 2), color='blue', alpha=0.7)
+# axes[0][1].set_xlim(left=0, right=1000)
+axes[0][1].scatter(moda2, 0, color="green", marker='o', label="Mode: {}".format(moda2))
+axes[0][1].scatter(maxim2, 0, color="red", marker='o', label="Max: {}".format(maxim2))
+axes[0][1].set_xlabel('Number of SNVs/window')
+axes[0][1].set_ylabel('Count')
+axes[0][1].set_title('Potential germline SNV counts for 2kb windows')
+axes[0][1].legend()
+
+# Plot for single-read INDELs
+maxim3 = np.max(data_non0[2])
+moda3 = mode(data_non0[2])
+axes[1][0].hist(data_non0[2], bins=range(int(min(data_non0[2])), int(max(data_non0[2])) + 2), color='blue', alpha=0.7)
+# axes[1][0].set_xlim(left=0, right=100)
+axes[1][0].scatter(moda3, 0, color="green", marker='o', label="Mode: {}".format(moda3))
+axes[1][0].scatter(maxim3, 0, color="red", marker='o', label="Max: {}".format(maxim3))
+axes[1][0].set_xlabel('Number of INDELs/window')
+axes[1][0].set_ylabel('Count')
+axes[1][0].set_title('Single-read INDEL counts for 2kb windows')
+axes[1][0].legend()
+
+# Plot for single-read SNVs
+maxim4 = np.max(data_non0[3])
+moda4 = mode(data_non0[3])
+axes[1][1].hist(data_non0[3], bins=range(int(min(data_non0[3])), int(max(data_non0[3])) + 2), color='blue', alpha=0.7)
+# axes[1][1].set_xlim(left=0, right=1500)
+axes[1][1].scatter(moda4, 0, color="green", marker='o', label="Mode: {}".format(moda4))
+axes[1][1].scatter(maxim4, 0, color="red", marker='o', label="Max: {}".format(maxim4))
+axes[1][1].set_xlabel('Number of SNVs/window')
+axes[1][1].set_ylabel('Count')
+axes[1][1].set_title('Single-read SNV counts for 2kb windows')
+axes[1][1].legend()
+
+# Plot for tumoral-only INDELs
+maxim5 = np.max(data_non0[4])
+moda5 = mode(data_non0[4])
+axes[2][0].hist(data_non0[4], bins=range(int(min(data_non0[4])), int(max(data_non0[4])) + 2), color='blue', alpha=0.7)
+# axes[2][0].set_xlim(left=0, right=100)
+axes[2][0].scatter(moda5, 0, color="green", marker='o', label="Mode: {}".format(moda5))
+axes[2][0].scatter(maxim5, 0, color="red", marker='o', label="Max: {}".format(maxim5))
+axes[2][0].set_xlabel('Number of INDELs/window')
+axes[2][0].set_ylabel('Count')
+axes[2][0].set_title('Tumoral-only INDEL counts for 2kb windows')
+axes[2][0].legend()
+
+# Plot for tumoral-only SNVs
+maxim6 = np.max(data_non0[5])
+moda6 = mode(data_non0[5])
+axes[2][1].hist(data_non0[5], bins=range(int(min(data_non0[5])), int(max(data_non0[5])) + 2), color='blue', alpha=0.7)
+# axes[2][1].set_xlim(left=0, right=1500)
+axes[2][1].scatter(moda6, 0, color="green", marker='o', label="Mode: {}".format(moda6))
+axes[2][1].scatter(maxim6, 0, color="red", marker='o', label="Max: {}".format(maxim6))
+axes[2][1].set_xlabel('Number of SNVs/window')
+axes[2][1].set_ylabel('Count')
+axes[2][1].set_title('Tumoral-only SNV counts for 2kb windows')
+axes[2][1].legend()
+
+# Plot for normal-only INDELs
+maxim7 = np.max(data_non0[6])
+moda7 = mode(data_non0[6])
+axes[3][0].hist(data_non0[6], bins=range(int(min(data_non0[6])), int(max(data_non0[6])) + 2), color='blue', alpha=0.7)
+# axes[3][0].set_xlim(left=0, right=100)
+axes[3][0].scatter(moda7, 0, color="green", marker='o', label="Mode: {}".format(moda7))
+axes[3][0].scatter(maxim7, 0, color="red", marker='o', label="Max: {}".format(maxim7))
+axes[3][0].set_xlabel('Number of INDELs/window')
+axes[3][0].set_ylabel('Count')
+axes[3][0].set_title('Normal-only INDEL counts for 2kb windows')
+axes[3][0].legend()
+
+# Plot for normal-only SNVs
+maxim8 = np.max(data_non0[7])
+# moda8 = mode(data_non0[7])
+axes[3][1].hist(data_non0[7], bins=range(int(min(data_non0[7])), int(max(data_non0[7])) + 2), color='blue', alpha=0.7)
+# axes[3][1].set_xlim(left=0, right=1500)
+# axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
+axes[3][1].scatter(maxim8, 0, color="red", marker='o', label="Max: {}".format(maxim8))
+axes[3][1].set_xlabel('Number of SNVs/window')
+axes[3][1].set_ylabel('Count')
+axes[3][1].set_title('Normal-only SNV counts for 2kb windows')
+axes[3][1].legend()
+
+# Adjust layout to prevent overlap
+plt.tight_layout()
+
+# Save the combined plot
+plt.savefig('{}/hist_combined_data_non0.pdf'.format(out_dir))
+
+# Create a single figure with subplots (plot log10 norm data)
+fig, axes = plt.subplots(4, 2, figsize=(24, 24))
+
+# Plot for potential germinal INDELs
+maxim1 = np.max(normalized_data[0])
+moda1 = mode(normalized_data[0])
+axes[0][0].hist(normalized_data[0], bins=range(int(min(normalized_data[0])), int(max(normalized_data[0])) + 2), color='blue', alpha=0.7)
+# axes[0][0].set_xlim(left=0, right=25)
+axes[0][0].scatter(moda1, 0, color="green", marker='o', label="Mode: {}".format(moda1))
+axes[0][0].scatter(maxim1, 0, color="red", marker='o', label="Max: {}".format(maxim1))
+axes[0][0].set_xlabel('Number of INDELs/window')
+axes[0][0].set_ylabel('Count')
+axes[0][0].set_title('Potential germline INDEL counts for 2kb windows')
+axes[0][0].legend()
+
+# Plot for potential germinal SNVs
+maxim2 = np.max(normalized_data[1])
+moda2 = mode(normalized_data[1])
+axes[0][1].hist(normalized_data[1], bins=range(int(min(normalized_data[1])), int(max(normalized_data[1])) + 2), color='blue', alpha=0.7)
+# axes[0][1].set_xlim(left=0, right=1000)
+axes[0][1].scatter(moda2, 0, color="green", marker='o', label="Mode: {}".format(moda2))
+axes[0][1].scatter(maxim2, 0, color="red", marker='o', label="Max: {}".format(maxim2))
+axes[0][1].set_xlabel('Number of SNVs/window')
+axes[0][1].set_ylabel('Count')
+axes[0][1].set_title('Potential germline SNV counts for 2kb windows')
+axes[0][1].legend()
+
+# Plot for single-read INDELs
+maxim3 = np.max(normalized_data[2])
+moda3 = mode(normalized_data[2])
+axes[1][0].hist(normalized_data[2], bins=range(int(min(normalized_data[2])), int(max(normalized_data[2])) + 2), color='blue', alpha=0.7)
+# axes[1][0].set_xlim(left=0, right=100)
+axes[1][0].scatter(moda3, 0, color="green", marker='o', label="Mode: {}".format(moda3))
+axes[1][0].scatter(maxim3, 0, color="red", marker='o', label="Max: {}".format(maxim3))
+axes[1][0].set_xlabel('Number of INDELs/window')
+axes[1][0].set_ylabel('Count')
+axes[1][0].set_title('Single-read INDEL counts for 2kb windows')
+axes[1][0].legend()
+
+# Plot for single-read SNVs
+maxim4 = np.max(normalized_data[3])
+moda4 = mode(normalized_data[3])
+axes[1][1].hist(normalized_data[3], bins=range(int(min(normalized_data[3])), int(max(normalized_data[3])) + 2), color='blue', alpha=0.7)
+# axes[1][1].set_xlim(left=0, right=1500)
+axes[1][1].scatter(moda4, 0, color="green", marker='o', label="Mode: {}".format(moda4))
+axes[1][1].scatter(maxim4, 0, color="red", marker='o', label="Max: {}".format(maxim4))
+axes[1][1].set_xlabel('Number of SNVs/window')
+axes[1][1].set_ylabel('Count')
+axes[1][1].set_title('Single-read SNV counts for 2kb windows')
+axes[1][1].legend()
+
+# Plot for tumoral-only INDELs
+maxim5 = np.max(normalized_data[4])
+moda5 = mode(normalized_data[4])
+axes[2][0].hist(normalized_data[4], bins=range(int(min(normalized_data[4])), int(max(normalized_data[4])) + 2), color='blue', alpha=0.7)
+# axes[2][0].set_xlim(left=0, right=100)
+axes[2][0].scatter(moda5, 0, color="green", marker='o', label="Mode: {}".format(moda5))
+axes[2][0].scatter(maxim5, 0, color="red", marker='o', label="Max: {}".format(maxim5))
+axes[2][0].set_xlabel('Number of INDELs/window')
+axes[2][0].set_ylabel('Count')
+axes[2][0].set_title('Tumoral-only INDEL counts for 2kb windows')
+axes[2][0].legend()
+
+# Plot for tumoral-only SNVs
+maxim6 = np.max(normalized_data[5])
+moda6 = mode(normalized_data[5])
+axes[2][1].hist(normalized_data[5], bins=range(int(min(normalized_data[5])), int(max(normalized_data[5])) + 2), color='blue', alpha=0.7)
+# axes[2][1].set_xlim(left=0, right=1500)
+axes[2][1].scatter(moda6, 0, color="green", marker='o', label="Mode: {}".format(moda6))
+axes[2][1].scatter(maxim6, 0, color="red", marker='o', label="Max: {}".format(maxim6))
+axes[2][1].set_xlabel('Number of SNVs/window')
+axes[2][1].set_ylabel('Count')
+axes[2][1].set_title('Tumoral-only SNV counts for 2kb windows')
+axes[2][1].legend()
+
+# Plot for normal-only INDELs
+maxim7 = np.max(normalized_data[6])
+moda7 = mode(normalized_data[6])
+axes[3][0].hist(normalized_data[6], bins=range(int(min(normalized_data[6])), int(max(normalized_data[6])) + 2), color='blue', alpha=0.7)
+# axes[3][0].set_xlim(left=0, right=100)
+axes[3][0].scatter(moda7, 0, color="green", marker='o', label="Mode: {}".format(moda7))
+axes[3][0].scatter(maxim7, 0, color="red", marker='o', label="Max: {}".format(maxim7))
+axes[3][0].set_xlabel('Number of INDELs/window')
+axes[3][0].set_ylabel('Count')
+axes[3][0].set_title('Normal-only INDEL counts for 2kb windows')
+axes[3][0].legend()
+
+# Plot for normal-only SNVs
+maxim8 = np.max(normalized_data[7])
+# moda8 = mode(normalized_data[7]])
+axes[3][1].hist(normalized_data[7], bins=range(int(min(normalized_data[7])), int(max(normalized_data[7])) + 2), color='blue', alpha=0.7)
+# axes[3][1].set_xlim(left=0, right=1500)
+# axes[3][1].scatter(moda8, 0, color="green", marker='o', label="Mode: {}".format(moda8))
+axes[3][1].scatter(maxim8, 0, color="red", marker='o', label="Max: {}".format(maxim8))
+axes[3][1].set_xlabel('Number of SNVs/window')
+axes[3][1].set_ylabel('Count')
+axes[3][1].set_title('Normal-only SNV counts for 2kb windows')
+axes[3][1].legend()
+
+# Adjust layout to prevent overlap
+plt.tight_layout()
+
+# Save the combined plot
+plt.savefig('{}/hist_combined_data_log10norm.pdf'.format(out_dir))
+
 
 """# Create a figure with two subplots
 fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=False, figsize=(8, 6))
