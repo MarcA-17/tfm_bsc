@@ -387,10 +387,12 @@ for seq_name, seq_windows in windows.items():
                 # continue  # go back to while loop beginning
                 # if -1 <= cmp <= 1:  # if intersection
                 cigar = str(current_aln.cigarstring)  # we get the cigar string
+                print(cigar)
                 # cigar_tuple = tumor_aln.cigartuples  # we get the cigar_tuple
                 # print(cigar)
                 # we get the md tag and process it
                 md_tag = current_aln.get_tag("MD", with_value_type=False)
+                print(md_tag)
                 pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
                 md_list = re.findall(pattern_md, md_tag)
                 # print(md_list)
@@ -976,6 +978,7 @@ dataset = [(data1, "INDELs tumor-normal"),
 total_windows = 0
 for chr in windows:
     total_windows += len(windows[chr])
+#print(total_windows)
 
 stats_file = "{}stats.txt".format(out_dir)
 with open(stats_file, "w") as file:
@@ -1050,6 +1053,32 @@ with open(supporting_stats_file, "w") as file:
             file.write('Standard deviation: {}\n'.format(std))
             file.write('Variance: {}\n'.format(var))
             file.write("\n")
+
+# Window length analysis
+
+window_length_qual = {"2,000":0, "2,000-100,000":0, "100,000-1M":0, ">1M":0}
+
+for seq_name, seq_windows in windows.items():
+    for window in seq_windows:
+        length = window[1] - window[0]
+        if int(length) <= 2000:
+            window_length_qual["2,000"] += 1
+        elif 2000 < int(length) <= 100000:
+            window_length_qual["2,000-100,000"] += 1
+        elif 100000 < int(length) <= 1000000:
+            window_length_qual["100,000-1M"] += 1
+        elif int(length) > 1000000:
+            window_length_qual[">1M"] += 1
+        #else:
+            #print(length)
+
+window_length_file = "{}window_length_qual.txt".format(out_dir)
+
+with open(window_length_file, "w") as file:
+    file.write('Windows length:\tCount:\n')
+    for i in window_length_qual:
+        line = str(i) + "\t" + str(window_length_qual[i]) + "\n"
+        file.write(line)
 
 """# Statistics
 
