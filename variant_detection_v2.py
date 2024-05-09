@@ -116,13 +116,6 @@ samfile_T = pysam.AlignmentFile(in_T_bam, 'rb')
 extractor = VariantExtractor(in_vcf)
 ref_genome = pysam.Fastafile(in_ref)
 
-# Codes representing the status of variations according to the read and tumor normal sample context
-TUMORAL_SINGLE_READ_VARIANT = 0
-NORMAL_SINGLE_READ_VARIANT = 1
-TUMORAL_ONLY_VARIANT = 2
-NORMAL_ONLY_VARIANT = 3
-TUMORAL_NORMAL_VARIANT = 4
-
 # Create a dict to assign an integer value to each chr name
 
 print("Begin dict.")
@@ -160,6 +153,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
     ref_mismatch_positions = []  # list to store the mismatch positions
     md_pos = 0  # to parse md_list
     md_length = 0  # to track the position in the genome
+    # print(len(md_positions_list))
     for symbol in md_positions_list:
         if symbol == "0":  # md separator
             pass  # ignore
@@ -248,6 +242,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                             called_indel.somatic_variation_type = SomaticVariationType.NORMAL_ONLY_VARIANT
             if cigar_op in ref_consuming:
                 current_ref_cigar_len += int(symbol)
+            # print(len(ref_mismatch_positions))
             if cigar_op == 'M' and len(
                     ref_mismatch_positions) > 0:  # works only if mismatches and matches are coded as M
                 if len(ref_mismatch_positions) == 0 or mm_pos_idx >= len(ref_mismatch_positions):
@@ -266,6 +261,7 @@ def anno_cigar2(indel_dict, snv_dict, cigar_str, md_positions_list, current_ref_
                     if substitution != 'N':  # N = unknown base
                         called_snv = CalledGenomicVariant(variant_chr, pos_snv, pos_snv, CalledGenomicVariant.TYPE_SNV, 1,
                                                           substitution)
+                        # print(called_snv.pos)
                         if called_snv.pos not in snv_dict:
                             snv_dict[called_snv.pos] = []
                         snv_pos_list = snv_dict[called_snv.pos]
@@ -363,64 +359,20 @@ for seq_name, seq_windows in windows.items():
         variant_chr = variant.contig
         variant_pos = variant.pos
         variant_end = variant.end
-
-        tumor_aln_iter = samfile_T.fetch(variant_chr, variant_pos, variant_end)
-        normal_aln_iter = samfile_N.fetch(variant_chr, variant_pos, variant_end)
-
+        tumor_aln_iter = samfile_T.fetch(seq_name, start_pos, end_pos)
+        normal_aln_iter = samfile_N.fetch(seq_name, start_pos, end_pos)
         for iterIdx, current_iter in enumerate((tumor_aln_iter, normal_aln_iter)):
-            # if hold_iter[iterIdx]:
-            #  current_aln = holded_alns[iterIdx]
-            #  hold_iter[iterIdx] = False
-            # else:
-            current_aln = next(current_iter, None)
-            while current_aln is not None:
+            for current_aln in current_iter:
                 if current_aln.cigarstring is None:
-                    current_aln = next(current_iter, None)
-                    continue  # go back to while loop beginning
-                # print('cigar:', tumor_aln.cigarstring)
-                # print(current_aln.reference_name, current_aln.reference_start, current_aln.reference_end,
-                # window[0], window[1], window[2])
-                chr_aln = chr_converter(chr_dict, current_aln.reference_name)  # we assign the integer value
-                # cmp = compare(chr_aln, current_aln.reference_start, current_aln.reference_end,window[0], window[1], window[2])
-                # print('cmp:', cmp)
-                # if cmp is None:
-                # continue  # go back to while loop beginning
-                # if -1 <= cmp <= 1:  # if intersection
+                    continue  # go back to for loop beginning
                 cigar = str(current_aln.cigarstring)  # we get the cigar string
-                #print(cigar)
-                # cigar_tuple = tumor_aln.cigartuples  # we get the cigar_tuple
-                # print(cigar)
-                # we get the md tag and process it
                 md_tag = current_aln.get_tag("MD", with_value_type=False)
-                #print(md_tag)
                 pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
                 md_list = re.findall(pattern_md, md_tag)
-                # print(md_list)
                 ref_pos = current_aln.reference_start  # get the reference position where the cigar begins
                 aln_chr = current_aln.reference_name  # we get the chr
-                # window = window_list[window_index]
-                # total_vars = anno_cigar2(dict_indel_count, outT, cigar, md_list, regexp, ref_pos, aln_chr, symbol_add, dict_cigar, ref_consuming, window)
-                # anno_cigar2(dict_indel_count, dict_snv_count, outT, cigar, md_list, regexp, ref_pos, aln_chr,
-                #          symbol_add, dict_cigar,
-                #         ref_consuming, window)
                 anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, ref_pos, aln_chr, iterIdx, ref_genome,
                             current_aln)
-                #print('snv:', dict_snv_count)
-                #print('indel:', dict_indel_count)
-                current_aln = next(current_iter, None)  # change to next alignment
-                # we annotate the variation and get the amount of variants in the tumor_aln
-                # window_vars += total_vars
-                # window_SNV += total_vars[0]
-                # window_INDEL += total_vars[1]
-                # print("total_vars:", total_vars)
-                # print("window_SNVs:", window_SNV)
-                # print("window_INDELs:", window_INDEL)
-                # print("window_SNV_list:", window_SNV_list)
-                # print("window_INDEL_list:", window_INDEL_list)
-                # if cmp < -1:  # cmp == -2 or -3
-                # current_aln = next(current_iter, None)  # change to next alignment
-                # if cmp > 1:  # cmp == 2 or 3
-                # if window_index < len(window_list)-1:  # if not the last window
             if iterIdx == 1:
                 single_read_variant_counts = 0
                 tumoral_only_counts = 0
@@ -465,23 +417,8 @@ for seq_name, seq_windows in windows.items():
                 SNV_counts[SomaticVariationType.TUMORAL_ONLY_VARIANT.value].append(tumoral_only_counts)
                 SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value].append(tumoral_normal_variant_counts)
                 SNV_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value].append(normal_only_variants_counts)
-                # SNV_counts.append(len(dict_snv_count))  # we store the number of variations in the window
+                # print(SNV_counts[SomaticVariationType.TUMORAL_NORMAL_VARIANT.value])
                 dict_snv_count = {}  # re-init dict
-                # hold_iter[iterIdx] = True
-                # holded_alns[iterIdx] = current_aln
-                break
-                # window_index += 1  # change to next window maintaining the alignment
-                # print(SNV_counts)
-                # window_vars_list.append(window_vars)  # store the variation amount in the list
-                # window_vars = 0  # restore the counter
-                # window_SNV_list.append(window_SNV)  # store the variation amount in the list
-                # window_SNV = 0  # restore the counter
-                # window_INDEL_list.append(window_INDEL)  # store the variation amount in the list
-                # window_INDEL = 0  # restore the counter
-                # else:  # if there are no more windows and no intersection
-                #   break
-        # if hold_iter[0] and hold_iter[1]:
-        #  continue
 
 """ 
     while tumor_aln is not None and window_index < len(window_list):
