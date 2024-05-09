@@ -387,12 +387,12 @@ for seq_name, seq_windows in windows.items():
                 # continue  # go back to while loop beginning
                 # if -1 <= cmp <= 1:  # if intersection
                 cigar = str(current_aln.cigarstring)  # we get the cigar string
-                print(cigar)
+                #print(cigar)
                 # cigar_tuple = tumor_aln.cigartuples  # we get the cigar_tuple
                 # print(cigar)
                 # we get the md tag and process it
                 md_tag = current_aln.get_tag("MD", with_value_type=False)
-                print(md_tag)
+                #print(md_tag)
                 pattern_md = r'0|\^[A-Z]+|[A-Z]|[0-9]+'
                 md_list = re.findall(pattern_md, md_tag)
                 # print(md_list)
@@ -405,6 +405,8 @@ for seq_name, seq_windows in windows.items():
                 #         ref_consuming, window)
                 anno_cigar2(dict_indel_count, dict_snv_count, cigar, md_list, ref_pos, aln_chr, iterIdx, ref_genome,
                             current_aln)
+                #print('snv:', dict_snv_count)
+                #print('indel:', dict_indel_count)
                 current_aln = next(current_iter, None)  # change to next alignment
                 # we annotate the variation and get the amount of variants in the tumor_aln
                 # window_vars += total_vars
@@ -425,7 +427,7 @@ for seq_name, seq_windows in windows.items():
                 tumoral_normal_variant_counts = 0
                 normal_only_variants_counts = 0
                 for k, v in dict_indel_count.items():
-                    # print(f'indel: {len(v)}')
+                    #print(f'indel: {len(v)}')
                     var_to_count: CalledGenomicVariant = pick_variant(v)
                     if (var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or
                             var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT):
@@ -447,7 +449,7 @@ for seq_name, seq_windows in windows.items():
                 tumoral_normal_variant_counts = 0
                 normal_only_variants_counts = 0
                 for k, v in dict_snv_count.items():
-                    # print(f'snv: {len(v)}')
+                    #print(f'snv: {len(v)}')
                     var_to_count: CalledGenomicVariant = pick_variant(v)
                     if (var_to_count.somatic_variation_type == SomaticVariationType.NORMAL_SINGLE_READ_VARIANT or
                             var_to_count.somatic_variation_type == SomaticVariationType.TUMORAL_SINGLE_READ_VARIANT):
@@ -577,7 +579,7 @@ data8 = SNV_counts[SomaticVariationType.NORMAL_ONLY_VARIANT.value]
 
 raw_data = [data1, data2, data3, data4, data5, data6, data7, data8]
 processed_data = []
-multiplier = 3
+multiplier = 1.5
 
 for i in raw_data:
     # Calculate mean and standard deviation
@@ -599,7 +601,7 @@ for i in raw_data:
 data_non0 = []
 for i in processed_data:
     # Remove zeros from the dataset using list comprehension
-    non_zero_data = [x for x in i if x != 0]
+    non_zero_data = [x for x in i if x != 0 and x != 1]
 
     # Add non-zero data to the data_non0 list
     data_non0.append(non_zero_data)
